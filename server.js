@@ -96,44 +96,66 @@ apiRoutes.get('/chercherCours', function(req, res)  {
             delete criteres[item];
         }
     });
-    var searchQuery
-    if(criteres.hasOwnProperty("tags")) {
-        var arrTags = criteres.tags.split(',');
-        var queryArr = [];
-        for (var i = 0; i < arrTags.length; i++)  {
-            queryArr.push(`'${arrTags[i]}'`);
+    if (!req.query.keywords && !criteres.hasOwnProperty('classe')) {
+        res.json({
+            success: false,
+            msg: 'Remplissez au moins un champ.'
+        });
+    } else {
+        var searchQuery
+        if (criteres.hasOwnProperty("tags"))  {
+            var arrTags = criteres.tags.split(',');
+            var queryArr = [];
+            for (var i = 0; i < arrTags.length; i++)  {
+                queryArr.push(`'${arrTags[i]}'`);
+            }
+            searchQuery = queryArr.join(' ');
         }
-        searchQuery = queryArr.join(' ');
-    }
 
 
-    var keysCriteres = Object.keys(criteres);
-    console.log(keysCriteres);
-    var query = {};
-    for(var i = 0; i < keysCriteres.length; i++) {
-        if(keysCriteres[i] !== "tags") {
-            query[keysCriteres[i]] = criteres[keysCriteres[i]];
-            console.log("query: " + JSON.stringify(query));
+        var keysCriteres = Object.keys(criteres);
+        console.log(keysCriteres);
+        var query =   {};
+        for (var i = 0; i < keysCriteres.length; i++)  {
+            if (keysCriteres[i] !== "tags")  {
+                query[keysCriteres[i]] = criteres[keysCriteres[i]];
+                console.log("query: " + JSON.stringify(query));
+            }
         }
-    }
-    if(searchQuery) {
-        query['$text'] = {
-            $search: searchQuery
+        if (searchQuery)  {
+            query['$text'] = {
+                $search: searchQuery
+            }
         }
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+            collection.find(query, {
+                content: 0
+            }).limit(50).toArray(function(err, cours) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+                res.json(cours);
+            });
+        });
     }
+});
+apiRoutes.get('/getListCours', function(req, res)  {
+    var user = req.query.user;
+
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
         }
         var collection = db.collection('cours');
-        collection.find(query, {
-            content: 0,
-            public: 0
-        }).limit(50).toArray(function(err, cours) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+        collection.find({
+            auteur: user
+        }).toArray(function(err, cours) {
             res.json(cours);
         });
     });
 });
+
 
 apiRoutes.get('/getCours', function(req, res)  {
     var coursId = new mongo.ObjectID(req.query.coursId);
@@ -144,10 +166,17 @@ apiRoutes.get('/getCours', function(req, res)  {
         }
         var collection = db.collection('cours');
         collection.find({
-            _id: coursId,
-            public: true
+            _id: coursId
         }).toArray(function(err, cours) {
             res.json(cours);
+            var collection = db.collection('cours');
+            collection.update({
+                _id: coursId
+            },   {
+                $inc:  {
+                    lectures: 1
+                }
+            });
         });
     });
 });
@@ -187,8 +216,11 @@ apiRoutes.get('/getprogramme', function(req, res) {
 });
 
 apiRoutes.post('/newCours', function(req, res) {
-    console.log(req.body.cours.ops[0].length);
-
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
     if (!req.body.auteur || !req.body.classe || !req.body.titre || !req.body.matiere || !req.body.chapitre || req.body.cours_length < 2) { //TODO: CHANGE TO ~500
         res.json({
             success: false,
@@ -196,20 +228,21 @@ apiRoutes.post('/newCours', function(req, res) {
         });
     } else {
         var newCours = {
-            auteur: req.body.auteur,
-            public: req.body.isPublic,
+            auteur: decoded.pseudo,
             classe: req.body.classe,
             titre: req.body.titre,
             matiere: req.body.matiere,
             chapitre: req.body.chapitre,
-            content: req.body.cours
+            content: req.body.cours,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+            lectures: 0
         };
         var insertDocument = function(db, callback) {
             db.collection('cours').insertOne(newCours, function(err, result) {
                 res.json({
                     _id: result.ops[0]._id
                 });
-
                 callback();
             });
         };
@@ -299,7 +332,9 @@ apiRoutes.get('/getuser', passport.authenticate('jwt', {
     if (token) {
         var decoded = jwt.decode(token, config.secret);
         User.findOne({
-            name: decoded.name
+            pseudo: decoded.pseudo
+        }, {
+            password: 0
         }, function(err, user) {
             if (err) throw err;
 
