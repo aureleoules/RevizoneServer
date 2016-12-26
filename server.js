@@ -141,21 +141,52 @@ apiRoutes.get('/chercherCours', function(req, res)  {
     }
 });
 apiRoutes.get('/getListCours', function(req, res)  {
-    var user = req.query.user;
-
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
         }
         var collection = db.collection('cours');
         collection.find({
-            auteur: user
+            auteur: pseudo
         }).toArray(function(err, cours) {
             res.json(cours);
         });
     });
 });
 
+apiRoutes.get('/getCoursRate', function(req, res)  {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var coursId = new mongo.ObjectID(req.query.coursId);
+    var pseudo = decoded.pseudo;
+    MongoClient.connect(config.database, function(err, db) {
+        if (err) {
+            return console.dir(err);
+        }
+        var collection = db.collection('cours');
+        var key = "rates." + pseudo + ".rate";
+        var query = {};
+        query[key] = 1;
+        collection.find({
+            _id: coursId
+        }, query).toArray(function(err, rate) {
+            if(rate[0].rates.hasOwnProperty(pseudo)) { //checks if there is a response basically
+                res.json({
+                    rate: rate[0].rates[pseudo].rate //send : {rate: 4} for e.g
+                });
+            };
+        });
+    });
+});
 
 apiRoutes.get('/getCours', function(req, res)  {
     var coursId = new mongo.ObjectID(req.query.coursId);
@@ -215,13 +246,54 @@ apiRoutes.get('/getprogramme', function(req, res) {
     });
 });
 
+apiRoutes.post('/rateCours', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var coursId = new mongo.ObjectID(req.body.coursId);
+    var stars = req.body.stars;
+    console.log(pseudo + "   " + coursId + "    " + stars);
+    if (!stars || !pseudo || !coursId) {
+        res.json({
+            success: false,
+            msg: "Erreur lors de l'envoi de la note."
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+
+            collection.update({
+                _id: coursId,
+            }, {
+                '$set' :  {
+                    "rates": {
+                        [pseudo]: {
+                            pseudo: pseudo,
+                            rate: stars
+                        }
+                    }
+                }
+            });
+        });
+    }
+    res.json({
+        success: true,
+        msg: "Votre note a été transmise!"
+    });});
+
 apiRoutes.post('/newCours', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
-    if (!req.body.auteur || !req.body.classe || !req.body.titre || !req.body.matiere || !req.body.chapitre || req.body.cours_length < 2) { //TODO: CHANGE TO ~500
+    if (req.body.classe === "Choisir" || req.body.titre === "Choisir" || req.body.matiere === "Choisir" || req.body.chapitre === "Choisir" || req.body.cours_length < 2) {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
