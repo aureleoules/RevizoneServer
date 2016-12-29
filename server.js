@@ -63,7 +63,6 @@ apiRoutes.get('/getProfile', function(req, res)  {
         },   {
             password: 0
         }).toArray(function(err, user) {
-            console.log(JSON.stringify(user));
             res.json(user);
         });
     });
@@ -114,12 +113,10 @@ apiRoutes.get('/chercherCours', function(req, res)  {
 
 
         var keysCriteres = Object.keys(criteres);
-        console.log(keysCriteres);
         var query =   {};
         for (var i = 0; i < keysCriteres.length; i++)  {
             if (keysCriteres[i] !== "tags")  {
                 query[keysCriteres[i]] = criteres[keysCriteres[i]];
-                console.log("query: " + JSON.stringify(query));
             }
         }
         if (searchQuery)  {
@@ -141,12 +138,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
     }
 });
 apiRoutes.get('/getListCours', function(req, res)  {
-    var token = getToken(req.headers);
-    var decoded;
-    if (token) {
-        var decoded = jwt.decode(token, config.secret);
-    }
-    var pseudo = decoded.pseudo;
+    var pseudo = req.query.pseudo;
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
@@ -178,14 +170,78 @@ apiRoutes.get('/getCoursRate', function(req, res)  {
         query[key] = 1;
         collection.find({
             _id: coursId
-        }, query).toArray(function(err, rate) {
-            if(rate[0].rates.hasOwnProperty(pseudo)) { //checks if there is a response basically
+        }, {
+            _id: 0,
+            rates: {
+                $elemMatch: {
+                    pseudo: pseudo
+                }
+            }
+        }).toArray().then(function(rate)  {
+            try  {
+                var returnedRate = rate[0].rates[0].rate;
+                if (returnedRate)  {
+                    res.json({
+                        rate: rate[0].rates[0].rate
+                    })
+                } else {
+                    res.json({
+                        success: false,
+                        msg: 'Aucune note attribuée pour ce cours.'
+                    });
+                }
+            } catch (e) {
                 res.json({
-                    rate: rate[0].rates[pseudo].rate //send : {rate: 4} for e.g
+                    success: false,
+                    msg: 'Aucune note attribuée pour ce cours.'
                 });
-            };
+            }
         });
     });
+});
+apiRoutes.get('/getClasse', function(req, res)  {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    User.findOne({
+        pseudo: pseudo
+    }, {
+        "scolaire.etablissement": 1,
+        "scolaire.classe": 1
+    }, function(err, user) {
+        if (err) throw err;
+        if (!user) {
+            return res.status(403).send({
+                success: false,
+                msg: 'Classe non trouvée.'
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('users');
+                collection.find({
+                    "scolaire.etablissement": user.scolaire.etablissement,
+                    "scolaire.classe": user.scolaire.classe
+                },   {
+                    "_id": 1,
+                    "pseudo": 1,
+                    "surname": 1,
+                    "name": 1,
+                    "scolaire.etablissement": 1,
+                    "scolaire.classe": 1,
+                    "scolaire.numero_classe": 1
+                }).toArray(function(err, classe) {
+                    res.json(classe);
+                });
+            });
+        }
+    });
+
 });
 
 apiRoutes.get('/getCours', function(req, res)  {
@@ -199,15 +255,23 @@ apiRoutes.get('/getCours', function(req, res)  {
         collection.find({
             _id: coursId
         }).toArray(function(err, cours) {
-            res.json(cours);
-            var collection = db.collection('cours');
-            collection.update({
-                _id: coursId
-            },   {
-                $inc:  {
-                    lectures: 1
-                }
-            });
+            if (cours.length < 1)  {
+                res.json({
+                    success: false,
+                    msg: "Ce cours est introuvable."
+                });
+
+            } else {
+                res.json(cours);
+                var collection = db.collection('cours');
+                collection.update({
+                    _id: coursId
+                },   {
+                    $inc:  {
+                        lectures: 1
+                    }
+                });
+            }
         });
     });
 });
@@ -228,7 +292,6 @@ apiRoutes.get('/getetablissements', function(req, res)  {
             numero_uai: 1,
             _id: 0
         }).toArray(function(err, etablissements) {
-            console.log("etablissements: " + JSON.stringify(etablissements));
             res.json(etablissements);
         });
     });
@@ -246,6 +309,185 @@ apiRoutes.get('/getprogramme', function(req, res) {
     });
 });
 
+apiRoutes.put('/editCours', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var coursId = new mongo.ObjectID(req.body.coursId);
+    if (!pseudo || !coursId) {
+        res.json({
+            success: false,
+            msg: "Erreur lors de la modification du cours."
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+
+            collection.update({
+                _id: coursId,
+                auteur: pseudo
+            }, {
+                $set: {
+                    content: req.body.content,
+                    modifiedAt: new Date().toISOString()
+                }
+            });
+        });
+        res.json({
+            success: true,
+            msg: "Cours enregistré avec succès."
+        });
+    }
+
+});
+
+apiRoutes.delete('/supprimerCours', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var coursId = new mongo.ObjectID(req.query.coursId);
+    if (!pseudo || !coursId)  {
+        res.json({
+            success: false,
+            msg: "Erreur lors de la suppression du cours."
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+
+            collection.remove({
+                _id: coursId,
+                auteur: pseudo
+            });
+        });
+        res.json({
+            success: true,
+            msg: "Cours supprimé avec succès."
+        })
+    }
+});
+
+apiRoutes.post('/followUser', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var userToFollow = req.body.user;
+    if (userToFollow === pseudo)  {
+        res.json({
+            success: false,
+            msg: "Vous ne pouvez pas vous suivre vous-même."
+        })
+    } else  {
+
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+
+            collection.update({
+                "pseudo": pseudo
+            }, {
+                $addToSet: {
+                    "followed":  userToFollow
+                }
+            });
+            res.json({
+                success: true,
+                msg: "Vous suivez désormais @" + userToFollow
+            })
+        });
+    }
+});
+
+apiRoutes.delete('/unFollowUser', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var userToUnFollow = req.query.user;
+    if (userToUnFollow === pseudo)  {
+        res.json({
+            success: false,
+            msg: "Erreur lors de l'opération."
+        })
+    } else  {
+
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.update({
+                "pseudo": pseudo
+            }, {
+                $pullAll: {
+                    "followed":  [userToUnFollow]
+                }
+            });
+            res.json({
+                success: true,
+                msg: "Vous ne suivez plus @" + userToUnFollow
+            })
+        });
+    }
+});
+
+apiRoutes.get('/isFollowed', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var userToCheck = req.query.pseudo;
+    if (userToCheck === pseudo)  {
+        res.json({
+            success: false,
+            msg: "Erreur lors de l'opération."
+        })
+    } else  {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.find({
+                "pseudo": pseudo,
+                "followed":  userToCheck
+            }).toArray().then(function(data)  {
+                if (data.length < 1)  {
+                    res.json({
+                        success: true,
+                        isFollowed: false
+                    });
+                } else  {
+                    res.json({
+                        success: true,
+                        isFollowed: true
+                    });
+                }
+            });
+        });
+    }
+});
 apiRoutes.post('/rateCours', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
@@ -255,7 +497,6 @@ apiRoutes.post('/rateCours', function(req, res) {
     var pseudo = decoded.pseudo;
     var coursId = new mongo.ObjectID(req.body.coursId);
     var stars = req.body.stars;
-    console.log(pseudo + "   " + coursId + "    " + stars);
     if (!stars || !pseudo || !coursId) {
         res.json({
             success: false,
@@ -267,26 +508,37 @@ apiRoutes.post('/rateCours', function(req, res) {
                 return console.dir(err);
             }
             var collection = db.collection('cours');
-
             collection.update({
-                _id: coursId,
-            }, {
-                '$set' :  {
-                    "rates": {
-                        [pseudo]: {
-                            pseudo: pseudo,
-                            rate: stars
+                    '_id': coursId
+                }, {
+                    $pull: {
+                        "rates": {
+                            pseudo: pseudo
                         }
                     }
+                },
+                false,
+                true
+            );
+            var updateQuery = {
+                '$addToSet': {
+                    "rates": {
+                        'pseudo': pseudo,
+                        'rate': stars
+                    }
+
                 }
-            });
+            };
+            collection.update({
+                _id: coursId,
+            }, updateQuery);
+        });
+        res.json({
+            success: true,
+            msg: "Votre note a été transmise!"
         });
     }
-    res.json({
-        success: true,
-        msg: "Votre note a été transmise!"
-    });});
-
+});
 apiRoutes.post('/newCours', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
@@ -308,12 +560,15 @@ apiRoutes.post('/newCours', function(req, res) {
             content: req.body.cours,
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
-            lectures: 0
+            lectures: 0,
+            rates:  []
+
         };
         var insertDocument = function(db, callback) {
             db.collection('cours').insertOne(newCours, function(err, result) {
                 res.json({
-                    _id: result.ops[0]._id
+                    _id: result.ops[0]._id,
+                    msg: 'Cours enregistré avec succès.'
                 });
                 callback();
             });
