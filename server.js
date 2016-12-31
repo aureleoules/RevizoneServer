@@ -68,6 +68,123 @@ apiRoutes.get('/getProfile', function(req, res)  {
     });
 });
 
+apiRoutes.post('/savePicture', function(req, res)  {
+    var imgData = req.body.img;
+    var pseudo = req.body.pseudo;
+    if (!imgData || !pseudo)  {
+        res.json({
+            success: false,
+            msg: 'Image non sauvegardée.'
+        })
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('pictures');
+
+            collection.update({
+                "pseudo": pseudo
+            }, {
+                "picture": imgData,
+                "pseudo": pseudo
+            }, {
+                upsert: true
+            });
+            res.json({
+                success: true,
+                msg: 'Image sauvegardée.'
+            })
+        });
+    }
+});
+
+apiRoutes.get('/getPicture', function(req, res)  {
+    var pseudo = req.query.pseudo;
+    console.log(pseudo);
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: 'Pas de pseudonyme fourni.'
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('pictures');
+            collection.find({
+                "pseudo": pseudo
+            }).toArray(function(err, picture) {
+                res.json(picture);
+            });
+        });
+    }
+});
+
+apiRoutes.get('/getUserFeed', function(req, res)  { //TODO: its gonna be hard
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var feed = [];
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: 'Utilisateur non connecté'
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.find({
+                pseudo: pseudo
+            },   {
+                _id: 0,
+                followed: 1
+            }).toArray(function(err, data) {
+                if (data.hasOwnProperty('followed'))  {
+                    res.json({
+                        success: false,
+                        msg: 'Utilisateur ne suit personne.'
+                    });
+                } else {
+                    var followedList = data[0].followed;
+                    var query = {};
+                    query['auteur'] = {
+                        "$in": followedList
+                    };
+                    MongoClient.connect(config.database, function(err, db) {
+                        if (err) {
+                            return console.dir(err);
+                        }
+                        var collection = db.collection('cours');
+                        collection.find(query,   {
+                            _id: 1,
+                            classe: 1,
+                            chapitre: 1,
+                            matiere: 1,
+                            titre: 1,
+                            lectures: 1,
+                            auteur: 1,
+                            createdAt: 1
+                        }).limit(50).toArray(function(err, data) {
+                            feed = data;
+                            res.json({
+                                success: true,
+                                feed: feed
+                            })
+                        });
+                    });
+                }
+            });
+        });
+    }
+});
 apiRoutes.get('/getEtablissementById', function(req, res)  {
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
@@ -210,7 +327,8 @@ apiRoutes.get('/getClasse', function(req, res)  {
         pseudo: pseudo
     }, {
         "scolaire.etablissement": 1,
-        "scolaire.classe": 1
+        "scolaire.classe": 1,
+        "scolaire.numero_classe": 1
     }, function(err, user) {
         if (err) throw err;
         if (!user) {
@@ -226,11 +344,11 @@ apiRoutes.get('/getClasse', function(req, res)  {
                 var collection = db.collection('users');
                 collection.find({
                     "scolaire.etablissement": user.scolaire.etablissement,
-                    "scolaire.classe": user.scolaire.classe
+                    "scolaire.classe": user.scolaire.classe,
+                    "scolaire.numero_classe": user.scolaire.numero_classe
                 },   {
                     "_id": 1,
                     "pseudo": 1,
-                    "surname": 1,
                     "name": 1,
                     "scolaire.etablissement": 1,
                     "scolaire.classe": 1,
@@ -583,7 +701,7 @@ apiRoutes.post('/newCours', function(req, res) {
 
 // create a new user account (POST http://localhost:8080/api/signup)
 apiRoutes.post('/signup', function(req, res) {
-    if (!req.body.name || !req.body.password || !req.body.surname || !req.body.pseudo || !req.body.codepostal || !req.body.etablissement || !req.body.classe || !req.body.numero_classe) {
+    if (!req.body.name || !req.body.password || !req.body.pseudo || !req.body.codepostal || !req.body.etablissement || !req.body.classe || !req.body.numero_classe) {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
@@ -591,15 +709,17 @@ apiRoutes.post('/signup', function(req, res) {
     } else {
         var newUser = new User({
             name: req.body.name,
-            surname: req.body.surname,
             password: req.body.password,
             pseudo: req.body.pseudo,
+            email: req.body.email,
             scolaire: {
                 code_postal: req.body.codepostal,
                 etablissement: req.body.etablissement,
                 classe: req.body.classe,
                 numero_classe: req.body.numero_classe
-            }
+            },
+            picture: req.body.picture,
+            followed: []
         });
         // save the user
         newUser.save(function(err) {
