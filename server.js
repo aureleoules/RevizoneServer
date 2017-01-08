@@ -101,7 +101,6 @@ apiRoutes.post('/savePicture', function(req, res)  {
 
 apiRoutes.get('/getPicture', function(req, res)  {
     var pseudo = req.query.pseudo;
-    console.log(pseudo);
     if (!pseudo)  {
         res.json({
             success: false,
@@ -121,7 +120,6 @@ apiRoutes.get('/getPicture', function(req, res)  {
         });
     }
 });
-
 apiRoutes.get('/getUserFeed', function(req, res)  { //TODO: its gonna be hard
     var token = getToken(req.headers);
     var decoded;
