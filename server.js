@@ -9,6 +9,10 @@ var passport = require('passport');
 var config = require('./config/database'); // get db config file
 var User = require('./app/models/user'); // get the mongoose model
 const util = require('./Utils/removeDiacritics');
+var bcrypt = require('bcrypt');
+var fs = require("fs");
+var request = require("request");
+
 String.prototype.capitalizeFirstLetter = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
@@ -81,16 +85,24 @@ apiRoutes.post('/savePicture', function(req, res)  {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('pictures');
-
-            collection.update({
-                "pseudo": pseudo
-            }, {
-                "picture": imgData,
-                "pseudo": pseudo
-            }, {
-                upsert: true
-            });
+            var collection = db.collection('users');
+            if (imgData.length < 1000)  {
+                collection.update({
+                    "pseudo": pseudo
+                }, {
+                    '$set': {
+                        "picture": 'http://i.imgur.com/Dknt6vC.png'
+                    }
+                });
+            } else {
+                collection.update({
+                    "pseudo": pseudo
+                }, {
+                    '$set': {
+                        "picture": imgData
+                    }
+                });
+            }
             res.json({
                 success: true,
                 msg: 'Image sauvegardée.'
@@ -111,10 +123,14 @@ apiRoutes.get('/getPicture', function(req, res)  {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('pictures');
+            var collection = db.collection('users');
             collection.find({
                 "pseudo": pseudo
+            },   {
+                _id: 0,
+                picture: 1
             }).toArray(function(err, picture) {
+                console.log(picture);
                 res.json(picture);
             });
         });
@@ -203,8 +219,9 @@ apiRoutes.get('/chercherCours', function(req, res)  {
         classe: req.query.classe,
         matiere: req.query.matiere,
         chapitre: req.query.chapitre,
-        tags: req.query.keywords
+        tags: req.query.keywords,
     }
+    const pageSize = 10;
     Object.keys(criteres).map(function(item, index) { //remove keys where value === "Tous"
         if (criteres[item] === "Tous" || criteres[item] === "") {
             delete criteres[item];
@@ -239,17 +256,31 @@ apiRoutes.get('/chercherCours', function(req, res)  {
                 $search: searchQuery
             }
         }
+        var coursLength;
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
                 return console.dir(err);
             }
             var collection = db.collection('cours');
-            collection.find(query, {
-                content: 0
-            }).limit(50).toArray(function(err, cours) { //TODO: PAGES : (.skip(num);) faire afficher page courante
-                res.json(cours);
+            collection.find(query).count(function(err, coursList) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+                coursLength = coursList;
+                MongoClient.connect(config.database, function(err, db) {
+                    if (err) {
+                        return console.dir(err);
+                    }
+                    var collection = db.collection('cours');
+                    collection.find(query, {
+                        content: 0
+                    }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray(function(err, cours) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+                        res.json({
+                            cours: cours,
+                            coursLength: coursLength
+                        });
+                    });
+                });
             });
         });
+
     }
 });
 apiRoutes.get('/getListCours', function(req, res)  {
@@ -261,6 +292,8 @@ apiRoutes.get('/getListCours', function(req, res)  {
         var collection = db.collection('cours');
         collection.find({
             auteur: pseudo
+        }, {
+            content: 0
         }).toArray(function(err, cours) {
             res.json(cours);
         });
@@ -316,25 +349,24 @@ apiRoutes.get('/getCoursRate', function(req, res)  {
 });
 apiRoutes.get('/getClasse', function(req, res)  {
     var token = getToken(req.headers);
-    var decoded;
+    var user;
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    User.findOne({
-        pseudo: pseudo
-    }, {
-        "scolaire.etablissement": 1,
-        "scolaire.classe": 1,
-        "scolaire.numero_classe": 1
-    }, function(err, user) {
-        if (err) throw err;
-        if (!user) {
-            return res.status(403).send({
-                success: false,
-                msg: 'Classe non trouvée.'
-            });
-        } else {
+    MongoClient.connect(config.database, function(err, db) {
+        if (err) {
+            return console.dir(err);
+        }
+        var collection = db.collection('users');
+        collection.find({
+            pseudo: pseudo
+        }, {
+            "scolaire.etablissement": 1,
+            "scolaire.classe":1,
+            "scolaire.numero_classe": 1
+        }).toArray(function(err, result) {
+            var user = result[0];
             MongoClient.connect(config.database, function(err, db) {
                 if (err) {
                     return console.dir(err);
@@ -355,7 +387,7 @@ apiRoutes.get('/getClasse', function(req, res)  {
                     res.json(classe);
                 });
             });
-        }
+        });
     });
 
 });
@@ -454,14 +486,124 @@ apiRoutes.put('/editCours', function(req, res) {
                     modifiedAt: new Date().toISOString()
                 }
             });
+            res.json({
+                success: true,
+                msg: "Cours enregistré avec succès."
+            });
         });
+    }
+});
+
+apiRoutes.put('/editPassword', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    if (!pseudo || !req.body.passwords.old || !req.body.passwords.new || !req.body.passwords.confirm  || (req.body.passwords.new !== req.body.passwords.confirm)) {
         res.json({
-            success: true,
-            msg: "Cours enregistré avec succès."
+            success: false,
+            msg: "Echec lors de la modification du mot de passe."
+        });
+    } else {
+        User.findOne({
+            pseudo: pseudo
+        }, function(err, user) {
+            if (err) throw err;
+            if (!user) {
+                res.send({
+                    success: false,
+                    msg: 'Connexion échouée. Utilisateur non trouvé.'
+                });
+            } else {
+                // check if password matches
+                user.comparePassword(req.body.passwords.old, function(err, isMatch) {
+                    if (isMatch && !err) {
+                        var User = {
+                            password: req.body.passwords.new
+                        };
+                        bcrypt.genSalt(10, function(err, salt) {
+                            if (err) {
+                                return err;
+                            }
+                            bcrypt.hash(User.password, salt, function(err, hash) {
+                                if (err) {
+                                    return err;
+                                }
+                                MongoClient.connect(config.database, function(err, db) {
+                                    if (err) {
+                                        return console.dir(err);
+                                    }
+                                    var collection = db.collection('users');
+                                    collection.updateOne({
+                                        pseudo: pseudo
+                                    }, {
+                                        $set: {
+                                            "password": hash,
+                                        }
+                                    });
+                                    res.json({
+                                        success: true,
+                                        msg: "Mot de passe enregistré avec succès."
+                                    });
+                                });
+                            });
+                        });
+                    } else {
+                        res.send({
+                            success: false,
+                            msg: 'Echec. Mauvais mot de passe.'
+                        });
+                    }
+                });
+            }
         });
     }
 
 });
+
+apiRoutes.put('/editUser', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    if (!pseudo) {
+        res.json({
+            success: false,
+            msg: "Utilisateur non connecté."
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            var user = req.body.user;
+            collection.updateOne({
+                pseudo: pseudo
+            }, {
+                $set: {
+                    "name": user.name,
+                    "email": user.email,
+                    "scolaire.code_postal": user.scolaire.code_postal,
+                    "scolaire.etablissement": user.scolaire.etablissement,
+                    "scolaire.classe": user.scolaire.classe,
+                    "scolaire.numero_classe": user.scolaire.numero_classe,
+                    "updatedAt": new Date().toISOString()
+                }
+            });
+            res.json({
+                success: true,
+                msg: "Informations modifiées avec succès."
+            });
+        });
+    }
+
+});
+
 
 apiRoutes.delete('/supprimerCours', function(req, res) {
     var token = getToken(req.headers);
@@ -655,6 +797,33 @@ apiRoutes.post('/rateCours', function(req, res) {
         });
     }
 });
+apiRoutes.post('/OCR', function(req, res)  {
+    if (!req.body.base64Image) {
+        res.json({
+            success: false,
+            msg: "Merci d'envoyer une image."
+        });
+    } else {
+        var options = {
+            method: 'POST',
+            url: 'https://api.ocr.space/parse/image',
+            headers: {
+                'postman-token': 'dd5e6b24-fa74-eb10-af2f-8fc0eff2c2f6',
+                'cache-control': 'no-cache',
+                'content-type': 'multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW'
+            },
+            formData: {
+                apikey: 'f8d02bef3488957',
+                base64Image: req.body.base64Image
+            }
+        };
+        request(options, function(error, response, body) {
+            if (error) throw new Error(error);
+            console.log(body);
+            res.send(body);
+        });
+    }
+});
 apiRoutes.post('/newCours', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
@@ -711,7 +880,7 @@ apiRoutes.post('/signup', function(req, res) {
             pseudo: req.body.pseudo,
             email: req.body.email,
             scolaire: {
-                code_postal: req.body.codepostal,
+                code_postal: parseInt(req.body.codepostal),
                 etablissement: req.body.etablissement,
                 classe: req.body.classe,
                 numero_classe: req.body.numero_classe
@@ -752,7 +921,11 @@ apiRoutes.post('/authenticate', function(req, res) {
             user.comparePassword(req.body.password, function(err, isMatch) {
                 if (isMatch && !err) {
                     // if user is found and password is right create a token
-                    var token = jwt.encode(user, config.secret);
+                    var token = jwt.encode({
+                        pseudo: user.pseudo,
+                        name: user.name,
+                        createdAt: user.createdAt
+                    }, config.secret);
                     // return the information including token as JSON
                     res.json({
                         success: true,

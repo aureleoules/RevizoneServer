@@ -1,4 +1,4 @@
 module.exports = {
-  'secret': '9ds8f4az987e1h987j',
-  'database': 'mongodb://localhost/revizone'
+  'secret': 'M7q2fLJoc5hF0liDX7P5upxgj9Dk5S2kjy861AFcTOg1lmvRXuwCWO4oediqyYh',
+  'database': 'mongodb://82.243.39.18/revizone'
 };
