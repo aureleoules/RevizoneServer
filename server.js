@@ -130,7 +130,6 @@ apiRoutes.get('/getPicture', function(req, res)  {
                 _id: 0,
                 picture: 1
             }).toArray(function(err, picture) {
-                console.log(picture);
                 res.json(picture);
             });
         });
@@ -592,6 +591,7 @@ apiRoutes.put('/editUser', function(req, res) {
                     "scolaire.etablissement": user.scolaire.etablissement,
                     "scolaire.classe": user.scolaire.classe,
                     "scolaire.numero_classe": user.scolaire.numero_classe,
+                    "picture": user.picture,
                     "updatedAt": new Date().toISOString()
                 }
             });
