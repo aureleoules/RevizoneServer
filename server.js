@@ -16,7 +16,7 @@ var request = require("request");
 String.prototype.capitalizeFirstLetter = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
-var port = process.env.PORT || 8088;
+var port = process.env.PORT || 8089;
 var jwt = require('jwt-simple');
 
 // get our request parameters
@@ -63,7 +63,7 @@ apiRoutes.get('/getProfile', function(req, res)  {
         }
         var collection = db.collection('users');
         collection.find({
-            pseudo: req.query.pseudo
+            pseudo: req.query.pseudo.toLowerCase()
         },   {
             password: 0
         }).toArray(function(err, user) {
@@ -167,6 +167,7 @@ apiRoutes.get('/getUserFeed', function(req, res)  { //TODO: its gonna be hard
                     });
                 } else {
                     var followedList = data[0].followed;
+                    followedList.push(pseudo);
                     var query = {};
                     query['auteur'] = {
                         "$in": followedList
@@ -283,7 +284,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
     }
 });
 apiRoutes.get('/getListCours', function(req, res)  {
-    var pseudo = req.query.pseudo;
+    var pseudo = req.query.pseudo.toLowerCase();
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
@@ -306,7 +307,7 @@ apiRoutes.get('/getCoursRate', function(req, res)  {
         var decoded = jwt.decode(token, config.secret);
     }
     var coursId = new mongo.ObjectID(req.query.coursId);
-    var pseudo = decoded.pseudo;
+    var pseudo = decoded.pseudo.toLowerCase();
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
@@ -352,7 +353,7 @@ apiRoutes.get('/getClasse', function(req, res)  {
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
-    var pseudo = decoded.pseudo;
+    var pseudo = decoded.pseudo.toLowerCase();
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
@@ -462,7 +463,7 @@ apiRoutes.put('/editCours', function(req, res) {
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
-    var pseudo = decoded.pseudo;
+    var pseudo = decoded.pseudo.toLowerCase();
     var coursId = new mongo.ObjectID(req.body.coursId);
     if (!pseudo || !coursId) {
         res.json({
@@ -644,7 +645,7 @@ apiRoutes.post('/followUser', function(req, res) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    var userToFollow = req.body.user;
+    var userToFollow = req.body.user.toLowerCase();
     if (userToFollow === pseudo)  {
         res.json({
             success: false,
@@ -680,7 +681,7 @@ apiRoutes.delete('/unFollowUser', function(req, res) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    var userToUnFollow = req.query.user;
+    var userToUnFollow = req.query.user.toLowerCase();
     if (userToUnFollow === pseudo)  {
         res.json({
             success: false,
@@ -715,7 +716,7 @@ apiRoutes.get('/isFollowed', function(req, res) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    var userToCheck = req.query.pseudo;
+    var userToCheck = req.query.pseudo.toLowerCase();
     if (userToCheck === pseudo)  {
         res.json({
             success: false,
@@ -877,7 +878,7 @@ apiRoutes.post('/signup', function(req, res) {
         var newUser = new User({
             name: req.body.name,
             password: req.body.password,
-            pseudo: req.body.pseudo,
+            pseudo: req.body.pseudo.toLowerCase(),
             email: req.body.email,
             scolaire: {
                 code_postal: parseInt(req.body.codepostal),
@@ -907,7 +908,7 @@ apiRoutes.post('/signup', function(req, res) {
 
 apiRoutes.post('/authenticate', function(req, res) {
     User.findOne({
-        pseudo: req.body.pseudo
+        pseudo: req.body.pseudo.toLowerCase()
     }, function(err, user) {
         if (err) throw err;
 
