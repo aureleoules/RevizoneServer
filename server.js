@@ -136,6 +136,26 @@ apiRoutes.get('/getPicture', function(req, res)  {
         });
     }
 });
+
+apiRoutes.get('/getRandomCours', function(req, res)  {
+    MongoClient.connect(config.database, function(err, db) {
+        if (err) {
+            return console.dir(err);
+        }
+        var collection = db.collection('cours');
+        collection.find({}, {
+            "$sample": {
+                "size": 1
+            }
+        }).toArray(function(err, data) {
+            res.json({
+                success: true,
+                cours: data[0]
+            })
+        });
+    });
+});
+
 apiRoutes.get('/getUserFeed', function(req, res)  {
     var token = getToken(req.headers);
     var decoded;
@@ -162,7 +182,7 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                 followed: 1
             }).toArray(function(err, data) {
                 var followedList;
-                if(data[0] !== undefined) {
+                if (data[0] !== undefined)  {
                     followedList = data[0].followed;
                 }
                 if (followedList !== undefined)  {
@@ -836,14 +856,14 @@ apiRoutes.post('/newCours', function(req, res) {
             success: false,
             msg: 'Merci de vérifier vos champs.'
         });
-    } else if(req.body.cours_length < 300) {
+    } else if (req.body.cours_length < 300) {
         res.json({
             success: false,
             msg: "Votre cours n'est pas assez long."
         });
     } else {
         var chapitre = req.body.chapitre;
-        if(req.body.chapitre === "Choisir") {
+        if (req.body.chapitre === "Choisir")  {
             chapitre = null;
         }
         var newCours = {
