@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-      "start": "clear; nodemon server.js"
+      "start": "clear; forever start  -c nodemon server.js"
   },
   "dependencies": {
     "bcrypt": "^0.8.5",
