@@ -143,16 +143,19 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
             return console.dir(err);
         }
         var collection = db.collection('cours');
-        collection.find({}, {
-            "$sample": {
-                "size": 1
-            }
-        }).toArray(function(err, data) {
-            res.json({
-                success: true,
-                cours: data[0]
-            })
+        collection.count(function(err, count) {
+            var random = Math.floor(Math.random() * count)
+            console.log(random);
+            collection.find({}, {
+                _id: 1
+            }).limit(1).skip(random).toArray(function(err, data) {
+                res.json({
+                    success: true,
+                    cours: data
+                })
+            });
         });
+
     });
 });
 
