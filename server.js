@@ -136,7 +136,7 @@ apiRoutes.get('/getPicture', function(req, res)  {
         });
     }
 });
-apiRoutes.get('/getUserFeed', function(req, res)  { //TODO: its gonna be hard
+apiRoutes.get('/getUserFeed', function(req, res)  {
     var token = getToken(req.headers);
     var decoded;
     if (token) {
@@ -259,7 +259,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
                 return console.dir(err);
             }
             var collection = db.collection('cours');
-            collection.find(query).count(function(err, coursList) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+            collection.find(query).count(function(err, coursList) {
                 coursLength = coursList;
                 MongoClient.connect(config.database, function(err, db) {
                     if (err) {
@@ -268,7 +268,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
                     var collection = db.collection('cours');
                     collection.find(query, {
                         content: 0
-                    }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray(function(err, cours) { //TODO: PAGES : (.skip(num);) faire afficher page courante
+                    }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray(function(err, cours) {
                         res.json({
                             cours: cours,
                             coursLength: coursLength
