@@ -161,7 +161,10 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                 _id: 0,
                 followed: 1
             }).toArray(function(err, data) {
-                var followedList = data[0].followed;
+                var followedList;
+                if(data[0] !== undefined) {
+                    followedList = data[0].followed;
+                }
                 if (followedList !== undefined)  {
                     followedList.push(pseudo);
                     var query = {};
