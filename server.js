@@ -160,40 +160,42 @@ apiRoutes.get('/getUserFeed', function(req, res)  { //TODO: its gonna be hard
                 _id: 0,
                 followed: 1
             }).toArray(function(err, data) {
-                if (data.hasOwnProperty('followed'))  {
+                if (data[0].hasOwnProperty('followed'))  {
                     res.json({
                         success: false,
                         msg: 'Utilisateur ne suit personne.'
                     });
                 } else {
                     var followedList = data[0].followed;
-                    followedList.push(pseudo);
-                    var query = {};
-                    query['auteur'] = {
-                        "$in": followedList
-                    };
-                    MongoClient.connect(config.database, function(err, db) {
-                        if (err) {
-                            return console.dir(err);
-                        }
-                        var collection = db.collection('cours');
-                        collection.find(query,   {
-                            _id: 1,
-                            classe: 1,
-                            chapitre: 1,
-                            matiere: 1,
-                            titre: 1,
-                            lectures: 1,
-                            auteur: 1,
-                            createdAt: 1
-                        }).limit(50).toArray(function(err, data) {
-                            feed = data;
-                            res.json({
-                                success: true,
-                                feed: feed
-                            })
+                    if (followedList !== undefined)  {
+                        followedList.push(pseudo);
+                        var query = {};
+                        query['auteur'] = {
+                            "$in": followedList
+                        };
+                        MongoClient.connect(config.database, function(err, db) {
+                            if (err) {
+                                return console.dir(err);
+                            }
+                            var collection = db.collection('cours');
+                            collection.find(query,   {
+                                _id: 1,
+                                classe: 1,
+                                chapitre: 1,
+                                matiere: 1,
+                                titre: 1,
+                                lectures: 1,
+                                auteur: 1,
+                                createdAt: 1
+                            }).limit(50).toArray(function(err, data) {
+                                feed = data;
+                                res.json({
+                                    success: true,
+                                    feed: feed
+                                })
+                            });
                         });
-                    });
+                    }
                 }
             });
         });
@@ -363,7 +365,7 @@ apiRoutes.get('/getClasse', function(req, res)  {
             pseudo: pseudo
         }, {
             "scolaire.etablissement": 1,
-            "scolaire.classe":1,
+            "scolaire.classe": 1,
             "scolaire.numero_classe": 1
         }).toArray(function(err, result) {
             var user = result[0];
