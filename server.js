@@ -46,7 +46,7 @@ app.use(function(req, res, next) {
 app.get('/', function(req, res) {
     res.json({
         state: '200',
-        msg: "Bienvenue sur le serveur de ReviZone"
+        msg: "Bienvenue sur le serveur nodeJS de ReviZone"
     });
 });
 var database = mongoose.connect(config.database);
