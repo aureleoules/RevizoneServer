@@ -828,10 +828,15 @@ apiRoutes.post('/newCours', function(req, res) {
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
-    if (req.body.classe === "Choisir" || req.body.titre === "Choisir" || req.body.matiere === "Choisir" || req.body.chapitre === "Choisir" || req.body.cours_length < 2) {
+    if (req.body.classe === "Choisir" || req.body.titre === "Choisir" || req.body.matiere === "Choisir" || !req.body.titre) {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
+        });
+    } else if(req.body.cours_length < 300) {
+        res.json({
+            success: false,
+            msg: "Votre cours n'est pas assez long."
         });
     } else {
         var newCours = {
