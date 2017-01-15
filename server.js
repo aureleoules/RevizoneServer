@@ -45,7 +45,8 @@ app.use(function(req, res, next) {
 // demo Route (GET http://localhost:8088)
 app.get('/', function(req, res) {
     res.json({
-        state: '200'
+        state: '200',
+        msg: "Bienvenue sur le serveur de ReviZone"
     });
 });
 var database = mongoose.connect(config.database);
