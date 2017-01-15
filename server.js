@@ -839,12 +839,16 @@ apiRoutes.post('/newCours', function(req, res) {
             msg: "Votre cours n'est pas assez long."
         });
     } else {
+        var chapitre = req.body.chapitre;
+        if(req.body.chapitre === "Choisir") {
+            chapitre = null;
+        }
         var newCours = {
             auteur: decoded.pseudo,
             classe: req.body.classe,
             titre: req.body.titre,
             matiere: req.body.matiere,
-            chapitre: req.body.chapitre,
+            chapitre: chapitre,
             content: req.body.cours,
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
