@@ -904,6 +904,16 @@ apiRoutes.post('/signup', function(req, res) {
                     msg: "L'utilisateur est déjà inscrit."
                 });
             }
+            // var token = jwt.encode({
+            //     pseudo: user.pseudo,
+            //     name: user.name,
+            //     createdAt: user.createdAt
+            // }, config.secret);
+            // // return the information including token as JSON
+            // res.json({
+            //     success: true,
+            //     token: 'JWT ' + token
+            // });
             res.json({
                 success: true,
                 msg: 'Utilisateur inscrit avec succès.'
