@@ -159,6 +159,50 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
     });
 });
 
+apiRoutes.delete('/supprimerExercice', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var coursId = new mongo.ObjectID(req.query.coursId);
+    var exerciceId = new mongo.ObjectID(req.query.exerciceId);
+    if (!pseudo || !req.query.coursId || !req.query.exerciceId)  {
+        res.json({
+            success: false,
+            msg: "Erreur lors de la suppression du cours."
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+
+            collection.update({
+                _id: coursId,
+                auteur: pseudo,
+                exercices: {
+                    $elemMatch: {
+                        _id: exerciceId
+                    }
+                }
+            }, {
+                $pull: {
+                    exercices: {
+                        _id: exerciceId
+                    }
+                }
+            });
+        });
+        res.json({
+            success: true,
+            msg: "Cours supprimé avec succès."
+        })
+    }
+});
+
 apiRoutes.get('/getExercices', function(req, res)  {
     if (!req.query.coursId)  {
         res.json({
