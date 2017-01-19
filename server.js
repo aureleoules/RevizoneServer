@@ -143,10 +143,10 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
             return console.dir(err);
         }
         var collection = db.collection('cours');
-        collection.count(function(err, count) {
+        collection.count(function(err, count)  {
             var random = Math.floor(Math.random() * count)
             console.log(random);
-            collection.find({}, {
+            collection.find({},   {
                 _id: 1
             }).limit(1).skip(random).toArray(function(err, data) {
                 res.json({
@@ -157,6 +157,77 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
         });
 
     });
+});
+
+apiRoutes.get('/getExercices', function(req, res)  {
+    if (!req.query.coursId)  {
+        res.json({
+            success: false,
+            msg: "Aucun cours demandé..."
+        })
+    } else {
+        var coursId = new mongo.ObjectID(req.query.coursId);
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+            collection.find({
+                _id: coursId
+            }, {
+                exercices: 1
+            }).toArray(function(err, data)  {
+                console.log(data);
+                res.json({
+                    success: true,
+                    exercices: data[0].exercices
+                });
+            });
+        });
+    }
+});
+
+apiRoutes.post('/saveExercices', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var coursId = new mongo.ObjectID(req.body.coursId);
+    var exercices = req.body.exercices;
+    for (var i = 0; i < exercices.length; i++)  { //define some attributes to the exercices in the batch
+        exercices[i].auteur = pseudo;
+        exercices[i].createdAt = new Date().toISOString();
+        exercices[i]._id = new mongo.ObjectID();
+    }
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: "Vous n'êtes pas connecté!"
+        })
+    } else  {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('cours');
+
+            collection.update({
+                "_id": coursId
+            }, {
+                $push: {
+                    "exercices": {
+                        $each: exercices
+                    }
+                }
+            });
+            res.json({
+                success: true,
+                msg: "Exercices enregistrés avec succès."
+            })
+        });
+    }
 });
 
 apiRoutes.get('/getUserFeed', function(req, res)  {
