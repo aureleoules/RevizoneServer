@@ -159,16 +159,15 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
     });
 });
 
-apiRoutes.delete('/supprimerExercice', function(req, res) {
+apiRoutes.delete('/supprimerQuiz', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    var coursId = new mongo.ObjectID(req.query.coursId);
-    var exerciceId = new mongo.ObjectID(req.query.exerciceId);
-    if (!pseudo || !req.query.coursId || !req.query.exerciceId)  {
+    var quizId = new mongo.ObjectID(req.query.quizId);
+    if (!pseudo  || !req.query.quizId)  {
         res.json({
             success: false,
             msg: "Erreur lors de la suppression du cours."
@@ -178,33 +177,22 @@ apiRoutes.delete('/supprimerExercice', function(req, res) {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('cours');
+            var collection = db.collection('quizs');
 
-            collection.update({
-                _id: coursId,
+            collection.remove({
                 auteur: pseudo,
-                exercices: {
-                    $elemMatch: {
-                        _id: exerciceId
-                    }
-                }
-            }, {
-                $pull: {
-                    exercices: {
-                        _id: exerciceId
-                    }
-                }
+                _id: quizId
             });
         });
         res.json({
             success: true,
-            msg: "Cours supprimé avec succès."
+            msg: "Quiz supprimé avec succès."
         })
     }
 });
 
-apiRoutes.get('/getExercices', function(req, res)  {
-    if (!req.query.coursId)  {
+apiRoutes.get('/getQuizs', function(req, res)  {
+    if (!req.query.coursId && !req.query.chapitre)  {
         res.json({
             success: false,
             msg: "Aucun cours demandé..."
@@ -215,36 +203,43 @@ apiRoutes.get('/getExercices', function(req, res)  {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('cours');
-            collection.find({
-                _id: coursId
-            }, {
-                exercices: 1
-            }).toArray(function(err, data)  {
-                console.log(data);
-                res.json({
-                    success: true,
-                    exercices: data[0].exercices
+            var collection = db.collection('quizs');
+            if (!req.query.coursId)  {
+                console.log("here");
+                collection.find({
+                    classe: req.query.classe,
+                    matiere: req.query.matiere,
+                    chapitre: req.query.chapitre
+                }).toArray(function(err, data)  {
+                    res.json({
+                        success: true,
+                        quizs: data
+                    });
                 });
-            });
+            } else  {
+                collection.find({
+                    coursId: coursId
+                }).toArray(function(err, data)  {
+                    res.json({
+                        success: true,
+                        quizs: data
+                    });
+                });
+            }
         });
     }
 });
 
-apiRoutes.post('/saveExercices', function(req, res) {
+apiRoutes.post('/saveQuizs', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
+    console.log(req.body.coursId);
     var coursId = new mongo.ObjectID(req.body.coursId);
-    var exercices = req.body.exercices;
-    for (var i = 0; i < exercices.length; i++)  { //define some attributes to the exercices in the batch
-        exercices[i].auteur = pseudo;
-        exercices[i].createdAt = new Date().toISOString();
-        exercices[i]._id = new mongo.ObjectID();
-    }
+    var quizs = req.body.quizs;
     if (!pseudo)  {
         res.json({
             success: false,
@@ -255,20 +250,29 @@ apiRoutes.post('/saveExercices', function(req, res) {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('cours');
-
-            collection.update({
-                "_id": coursId
-            }, {
-                $push: {
-                    "exercices": {
-                        $each: exercices
-                    }
+            var collection = db.collection('quizs');
+            var quiz =   {};
+            console.log(req.body.coursSeulement);
+            if (req.body.coursSeulement === "true" || req.body.coursSeulement === true)  {
+                for (var i = 0; i < quizs.length; i++)  {
+                    quizs[i].auteur = pseudo;
+                    quizs[i].createdAt = new Date().toISOString();
+                    quizs[i].coursId = coursId;
+                    collection.insertOne(quizs[i]);
                 }
-            });
+            } else if (req.body.coursSeulement === 'false'  || req.body.coursSeulement === false) {
+                for (var i = 0; i < quizs.length; i++)  {
+                    quizs[i].auteur = pseudo;
+                    quizs[i].createdAt = new Date().toISOString();
+                    quizs[i].classe = req.body.classe;
+                    quizs[i].matiere = req.body.matiere;
+                    quizs[i].chapitre = req.body.chapitre;
+                    collection.insertOne(quizs[i]);
+                }
+            }
             res.json({
                 success: true,
-                msg: "Exercices enregistrés avec succès."
+                msg: "Quiz enregistrés avec succès."
             })
         });
     }
