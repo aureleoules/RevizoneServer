@@ -177,7 +177,7 @@ apiRoutes.delete('/supprimerQuiz', function(req, res) {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('quizs');
+            var collection = db.collection('exercices');
 
             collection.remove({
                 auteur: pseudo,
@@ -203,7 +203,7 @@ apiRoutes.get('/getQuizs', function(req, res)  {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('quizs');
+            var collection = db.collection('exercices');
             if (!req.query.coursId)  {
                 console.log("here");
                 collection.find({
@@ -237,7 +237,6 @@ apiRoutes.post('/saveQuizs', function(req, res) {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo;
-    console.log(req.body.coursId);
     var coursId = new mongo.ObjectID(req.body.coursId);
     var quizs = req.body.quizs;
     if (!pseudo)  {
@@ -250,9 +249,8 @@ apiRoutes.post('/saveQuizs', function(req, res) {
             if (err) {
                 return console.dir(err);
             }
-            var collection = db.collection('quizs');
+            var collection = db.collection('exercices');
             var quiz =   {};
-            console.log(req.body.coursSeulement);
             if (req.body.coursSeulement === "true" || req.body.coursSeulement === true)  {
                 for (var i = 0; i < quizs.length; i++)  {
                     quizs[i].auteur = pseudo;
@@ -355,6 +353,30 @@ apiRoutes.get('/getEtablissementById', function(req, res)  {
     });
 });
 
+
+apiRoutes.get('/chercherExercices', function(req, res)  {
+    var criteres = { //Data passed by user
+        classe: req.query.classe,
+        matiere: req.query.matiere,
+        chapitre: req.query.chapitre,
+    }
+    if(!req.query.classe | !req.query.matiere || !req.query.chapitre) {
+        res.json({
+            success: false,
+            msg: 'Vérifiez vos champs.'
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('exercices');
+            collection.find(criteres).toArray(function(err, result) {
+                res.json(result);
+            });
+        });
+    }
+});
 
 apiRoutes.get('/chercherCours', function(req, res)  {
     var criteres = { //Data passed by user
