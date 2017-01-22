@@ -145,7 +145,6 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
         var collection = db.collection('cours');
         collection.count(function(err, count)  {
             var random = Math.floor(Math.random() * count)
-            console.log(random);
             collection.find({},   {
                 _id: 1
             }).limit(1).skip(random).toArray(function(err, data) {
@@ -167,11 +166,16 @@ apiRoutes.delete('/supprimerQuiz', function(req, res) {
     }
     var pseudo = decoded.pseudo;
     var quizId = new mongo.ObjectID(req.query.quizId);
-    if (!pseudo  || !req.query.quizId)  {
+    if (!pseudo)  {
         res.json({
             success: false,
-            msg: "Erreur lors de la suppression du cours."
+            msg: "Vous n'êtes pas connecté."
         });
+    } else if (!req.query.quizId)  {
+        res.json({
+            success: false,
+            msg: "Aucun quiz à supprimer indiqué."
+        })
     } else {
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
@@ -205,7 +209,6 @@ apiRoutes.get('/getQuizs', function(req, res)  {
             }
             var collection = db.collection('exercices');
             if (!req.query.coursId)  {
-                console.log("here");
                 collection.find({
                     classe: req.query.classe,
                     matiere: req.query.matiere,
@@ -239,11 +242,33 @@ apiRoutes.post('/saveQuizs', function(req, res) {
     var pseudo = decoded.pseudo;
     var coursId = new mongo.ObjectID(req.body.coursId);
     var quizs = req.body.quizs;
+    console.log(quizs);
+    var isNullValue = false;
+    for (var i = 0; i < req.body.quizs.length; i++)  {
+        console.log(req.body.quizs[i])
+        if (req.body.quizs[i].question === "")  {
+            isNullValue = true;
+        }
+        if (req.body.quizs[i].reponse === "")  {
+            isNullValue = true
+        }
+    }
+    console.log(isNullValue);
     if (!pseudo)  {
         res.json({
             success: false,
             msg: "Vous n'êtes pas connecté!"
-        })
+        });
+    } else if (req.body.coursSeulement === "false" && (!req.body.classe  || !req.body.matiere || !req.body.chapitre  || req.body.classe === "Tous"  || !req.body.matiere === "Tous"  || req.body.chapitre === "Tous"))  {
+        res.json({
+            succes: false,
+            msg: "Merci d'indiquer un chapitre."
+        });
+    } else if (isNullValue === true)  {
+        res.json({
+            success: false,
+            msg: "Verifiez vos champs."
+        });
     } else  {
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
@@ -360,12 +385,12 @@ apiRoutes.get('/chercherExercices', function(req, res)  {
         matiere: req.query.matiere,
         chapitre: req.query.chapitre,
     }
-    if(!req.query.classe | !req.query.matiere || !req.query.chapitre) {
+    if (!req.query.classe | !req.query.matiere || !req.query.chapitre)  {
         res.json({
             success: false,
             msg: 'Vérifiez vos champs.'
         });
-    } else {
+    } else  {
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
                 return console.dir(err);
@@ -984,7 +1009,6 @@ apiRoutes.post('/OCR', function(req, res)  {
         };
         request(options, function(error, response, body) {
             if (error) throw new Error(error);
-            console.log(body);
             res.send(body);
         });
     }
