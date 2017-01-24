@@ -1072,6 +1072,12 @@ apiRoutes.post('/signup', function(req, res) {
             msg: 'Merci de vérifier vos champs.'
         });
     } else {
+        var picture;
+        if (req.body.picture === undefined || req.body.picture === "" || req.body.picture === null) {
+            picture = "http://i.imgur.com/Dknt6vC.png";
+        } else {
+            picture = req.body.picture;
+        }
         var newUser = new User({
             name: req.body.name,
             password: req.body.password,
@@ -1083,7 +1089,7 @@ apiRoutes.post('/signup', function(req, res) {
                 classe: req.body.classe,
                 numero_classe: req.body.numero_classe
             },
-            picture: req.body.picture,
+            picture: picture,
             followed: []
         });
         // save the user
