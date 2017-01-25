@@ -145,7 +145,9 @@ apiRoutes.get('/getRandomCours', function(req, res)  {
         var collection = db.collection('cours');
         collection.count(function(err, count)  {
             var random = Math.floor(Math.random() * count)
-            collection.find({},   {
+            collection.find({
+                public: true
+            },   {
                 _id: 1
             }).limit(1).skip(random).toArray(function(err, data) {
                 res.json({
@@ -242,7 +244,6 @@ apiRoutes.post('/saveQuizs', function(req, res) {
     var pseudo = decoded.pseudo;
     var coursId = new mongo.ObjectID(req.body.coursId);
     var quizs = req.body.quizs;
-    console.log(quizs);
     var isNullValue = false;
     for (var i = 0; i < req.body.quizs.length; i++)  {
         console.log(req.body.quizs[i])
@@ -253,7 +254,6 @@ apiRoutes.post('/saveQuizs', function(req, res) {
             isNullValue = true
         }
     }
-    console.log(isNullValue);
     if (!pseudo)  {
         res.json({
             success: false,
@@ -336,27 +336,26 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                     query['auteur'] = {
                         "$in": followedList
                     };
-                    MongoClient.connect(config.database, function(err, db) {
-                        if (err) {
-                            return console.dir(err);
-                        }
-                        var collection = db.collection('cours');
-                        collection.find(query,   {
-                            _id: 1,
-                            classe: 1,
-                            chapitre: 1,
-                            matiere: 1,
-                            titre: 1,
-                            lectures: 1,
-                            auteur: 1,
-                            createdAt: 1
-                        }).limit(50).toArray(function(err, data) {
-                            feed = data;
-                            res.json({
-                                success: true,
-                                feed: feed
-                            })
-                        });
+                    query['public'] = true;
+                    if (err) {
+                        return console.dir(err);
+                    }
+                    collection = db.collection('cours');
+                    collection.find(query,   {
+                        _id: 1,
+                        classe: 1,
+                        chapitre: 1,
+                        matiere: 1,
+                        titre: 1,
+                        lectures: 1,
+                        auteur: 1,
+                        createdAt: 1
+                    }).limit(50).toArray(function(err, data) {
+                        feed = data;
+                        res.json({
+                            success: true,
+                            feed: feed
+                        })
                     });
                 }
 
@@ -445,6 +444,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
                 $search: searchQuery
             }
         }
+        query['public'] = true;
         var coursLength;
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
@@ -453,18 +453,15 @@ apiRoutes.get('/chercherCours', function(req, res)  {
             var collection = db.collection('cours');
             collection.find(query).count(function(err, coursList) {
                 coursLength = coursList;
-                MongoClient.connect(config.database, function(err, db) {
-                    if (err) {
-                        return console.dir(err);
-                    }
-                    var collection = db.collection('cours');
-                    collection.find(query, {
-                        content: 0
-                    }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray(function(err, cours) {
-                        res.json({
-                            cours: cours,
-                            coursLength: coursLength
-                        });
+                if (err) {
+                    return console.dir(err);
+                }
+                collection.find(query, {
+                    content: 0
+                }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray(function(err, cours) {
+                    res.json({
+                        cours: cours,
+                        coursLength: coursLength
                     });
                 });
             });
@@ -474,14 +471,30 @@ apiRoutes.get('/chercherCours', function(req, res)  {
 });
 apiRoutes.get('/getListCours', function(req, res)  {
     var pseudo = req.query.pseudo.toLowerCase();
+    var token = getToken(req.headers);
+    var pseudoLogged;
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+        pseudoLogged = decoded.pseudo.toLowerCase();
+    }
+    var query;
+    if (pseudoLogged === pseudo) {
+        query = {
+            auteur: pseudo
+        }
+    } else {
+        query = {
+            auteur: pseudo,
+            public: true
+        }
+    }
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
         }
         var collection = db.collection('cours');
-        collection.find({
-            auteur: pseudo
-        }, {
+        collection.find(query, {
             content: 0
         }).toArray(function(err, cours) {
             res.json(cours);
@@ -556,25 +569,20 @@ apiRoutes.get('/getClasse', function(req, res)  {
             "scolaire.numero_classe": 1
         }).toArray(function(err, result) {
             var user = result[0];
-            MongoClient.connect(config.database, function(err, db) {
-                if (err) {
-                    return console.dir(err);
-                }
-                var collection = db.collection('users');
-                collection.find({
-                    "scolaire.etablissement": user.scolaire.etablissement,
-                    "scolaire.classe": user.scolaire.classe,
-                    "scolaire.numero_classe": user.scolaire.numero_classe
-                },   {
-                    "_id": 1,
-                    "pseudo": 1,
-                    "name": 1,
-                    "scolaire.etablissement": 1,
-                    "scolaire.classe": 1,
-                    "scolaire.numero_classe": 1
-                }).toArray(function(err, classe) {
-                    res.json(classe);
-                });
+            collection = db.collection('users');
+            collection.find({
+                "scolaire.etablissement": user.scolaire.etablissement,
+                "scolaire.classe": user.scolaire.classe,
+                "scolaire.numero_classe": user.scolaire.numero_classe
+            },   {
+                "_id": 1,
+                "pseudo": 1,
+                "name": 1,
+                "scolaire.etablissement": 1,
+                "scolaire.classe": 1,
+                "scolaire.numero_classe": 1
+            }).toArray(function(err, classe) {
+                res.json(classe);
             });
         });
     });
@@ -1019,7 +1027,7 @@ apiRoutes.post('/newCours', function(req, res) {
     if (token) {
         var decoded = jwt.decode(token, config.secret);
     }
-    if (req.body.classe === "Choisir" || req.body.titre === "Choisir" || req.body.matiere === "Choisir" || !req.body.titre) {
+    if (req.body.classe === "Choisir" || req.body.titre === "Choisir" || req.body.matiere === "Choisir" || !req.body.titre || req.body.public === '') {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
@@ -1032,7 +1040,7 @@ apiRoutes.post('/newCours', function(req, res) {
     } else {
         var chapitre = req.body.chapitre;
         if (req.body.chapitre === "Choisir")  {
-            chapitre = null;
+            chapitre = '';
         }
         var newCours = {
             auteur: decoded.pseudo,
@@ -1043,6 +1051,7 @@ apiRoutes.post('/newCours', function(req, res) {
             content: req.body.cours,
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
+            public: req.body.public,
             lectures: 0,
             rates:  []
 
