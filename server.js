@@ -662,7 +662,7 @@ apiRoutes.put('/editCours', function(req, res) {
     }
     var pseudo = decoded.pseudo.toLowerCase();
     var coursId = new mongo.ObjectID(req.body.coursId);
-    if (!pseudo || !coursId) {
+    if (!pseudo || !coursId || req.body.public === '') {
         res.json({
             success: false,
             msg: "Erreur lors de la modification du cours."
@@ -673,14 +673,14 @@ apiRoutes.put('/editCours', function(req, res) {
                 return console.dir(err);
             }
             var collection = db.collection('cours');
-
             collection.update({
                 _id: coursId,
                 auteur: pseudo
             }, {
                 $set: {
                     content: req.body.content,
-                    modifiedAt: new Date().toISOString()
+                    modifiedAt: new Date().toISOString(),
+                    public: req.body.public
                 }
             });
             res.json({
