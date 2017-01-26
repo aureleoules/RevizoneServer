@@ -12,13 +12,17 @@ const util = require('./Utils/removeDiacritics');
 var bcrypt = require('bcrypt');
 var fs = require("fs");
 var request = require("request");
+var https = require('https');
 
 String.prototype.capitalizeFirstLetter = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
 var port = process.env.PORT || 8089;
 var jwt = require('jwt-simple');
-
+var options = {
+  key: fs.readFileSync('SSL/key.pem'),
+  cert: fs.readFileSync('SSL/cert.pem')
+};
 // get our request parameters
 app.use(bodyParser.urlencoded({
     extended: false,
@@ -1212,5 +1216,7 @@ getToken = function(headers) {
 app.use('/api', apiRoutes);
 
 // Start the server
-app.listen(port);
+var a = https.createServer(options, function (req, res) {
+  res.writeHead(200);
+}).listen(port);
 console.log('Server at: http://localhost:' + port);
