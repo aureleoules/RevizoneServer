@@ -20,8 +20,9 @@ String.prototype.capitalizeFirstLetter = function() {
 var port = process.env.PORT || 8089;
 var jwt = require('jwt-simple');
 var options = {
-  key: fs.readFileSync('SSL/key.pem'),
-  cert: fs.readFileSync('SSL/cert.pem')
+    key: fs.readFileSync('SSL/server-key.pem'),
+    cert: fs.readFileSync('SSL/server-crt.pem'),
+    ca: fs.readFileSync('SSL/ca-crt.pem'),
 };
 // get our request parameters
 app.use(bodyParser.urlencoded({
