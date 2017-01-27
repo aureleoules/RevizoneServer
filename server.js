@@ -1215,7 +1215,6 @@ getToken = function(headers) {
 };
 // connect the api routes under /api/*
 app.use('/api', apiRoutes);
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 // Start the server
 var a = https.createServer(options, app).listen(port);
 console.log('Server at: http://localhost:' + port);
