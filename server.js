@@ -1216,5 +1216,6 @@ getToken = function(headers) {
 // connect the api routes under /api/*
 app.use('/api', apiRoutes);
 // Start the server
-var a = https.createServer(options, app).listen(port);
+//var a = https.createServer(options, app).listen(port);
+app.listen(port);
 console.log('Server at: http://localhost:' + port);
