@@ -20,9 +20,9 @@ String.prototype.capitalizeFirstLetter = function() {
 var port = process.env.PORT || 8089;
 var jwt = require('jwt-simple');
 var options = {
-    key: fs.readFileSync('SSL/server-key.pem'),
-    cert: fs.readFileSync('SSL/server-crt.pem'),
-    ca: fs.readFileSync('SSL/ca-crt.pem'),
+    key: fs.readFileSync('SSL/privkey.pem'),
+    cert: fs.readFileSync('SSL/cert.pem'),
+    ca: fs.readFileSync('SSL/chain.pem'),
 };
 // get our request parameters
 app.use(bodyParser.urlencoded({
@@ -1391,6 +1391,6 @@ getToken = function(headers) {
 // connect the api routes under /api/*
 app.use('/api', apiRoutes);
 // Start the server
-//var a = https.createServer(options, app).listen(port);
-app.listen(port);
+var a = https.createServer(options, app).listen(port);
+// app.listen(port);
 console.log('Server at: http://localhost:' + port);
