@@ -935,6 +935,7 @@ apiRoutes.delete('/removeClasseFeed', function(req, res) {
                 }, {
                     $pull: {
                         "feed": {
+                            auteur: pseudo,
                             _id: commentId
                         }
                     }
