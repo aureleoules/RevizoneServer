@@ -848,6 +848,7 @@ apiRoutes.post('/msgClasseFeed', function(req, res) {
     }
     var pseudo = decoded.pseudo;
     var msg = req.body.msg;
+    var cours = req.body.cours;
     if (!pseudo)  {
         res.json({
             success: false,
@@ -869,29 +870,47 @@ apiRoutes.post('/msgClasseFeed', function(req, res) {
             }, {
                 "scolaire": 1
             }).toArray().then(function(data) {
-                var scolaire = data[0].scolaire;
-                collection = db.collection('classeFeed');
-                collection.update({
-                    'etablissement': scolaire.etablissement,
-                    'classe': scolaire.classe,
-                    'numero': scolaire.numero_classe
+                scolaire = data[0].scolaire;
+                collection = db.collection('cours');
+                collection.find({
+                    _id: cours._id,
+                    classe: cours.classe,
+                    titre: cours.titre,
+                    matiere: cours.matiere
                 }, {
-                    $push: {
-                        'feed': {
-                            _id: new mongo.ObjectID(),
-                            auteur: pseudo,
-                            msg: msg,
-                            createdAt: new Date().toISOString(),
-                            modifiedAt: new Date().toISOString(),
-                        }
+                    _id: 1
+                }).toArray().then(function(data) {
+                    var coursData;
+                    if (data) {
+                        coursData = cours;
+                    } else {
+                        coursData = '';
                     }
-                }, {
-                    upsert: true
-                })
-                res.json({
-                    success: true,
-                    msg: 'Post ajouté.'
+                    collection = db.collection('classeFeed');
+                    collection.update({
+                        'etablissement': scolaire.etablissement,
+                        'classe': scolaire.classe,
+                        'numero': scolaire.numero_classe
+                    }, {
+                        $push: {
+                            'feed': {
+                                _id: new mongo.ObjectID(),
+                                auteur: pseudo,
+                                msg: msg,
+                                createdAt: new Date().toISOString(),
+                                modifiedAt: new Date().toISOString(),
+                                cours: coursData
+                            }
+                        }
+                    }, {
+                        upsert: true
+                    })
+                    res.json({
+                        success: true,
+                        msg: 'Post ajouté.'
+                    });
                 });
+
             });
         });
     }
