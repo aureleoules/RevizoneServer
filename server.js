@@ -840,6 +840,161 @@ apiRoutes.delete('/supprimerCours', function(req, res) {
     }
 });
 
+apiRoutes.post('/msgClasseFeed', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var msg = req.body.msg;
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: "Vous n'êtes pas connecté."
+        });
+    } else if (!msg) {
+        res.json({
+            success: false,
+            msg: 'Aucun message envoyé...'
+        })
+    } else  {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.find({
+                "pseudo": pseudo
+            }, {
+                "scolaire": 1
+            }).toArray().then(function(data) {
+                var scolaire = data[0].scolaire;
+                collection = db.collection('classeFeed');
+                collection.update({
+                    'etablissement': scolaire.etablissement,
+                    'classe': scolaire.classe,
+                    'numero': scolaire.numero_classe
+                }, {
+                    $push: {
+                        'feed': {
+                            _id: new mongo.ObjectID(),
+                            auteur: pseudo,
+                            msg: msg,
+                            createdAt: new Date().toISOString(),
+                            modifiedAt: new Date().toISOString(),
+                        }
+                    }
+                }, {
+                    upsert: true
+                })
+                res.json({
+                    success: true,
+                    msg: 'Post ajouté.'
+                });
+            });
+        });
+    }
+});
+
+apiRoutes.delete('/removeClasseFeed', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    var commentId = new mongo.ObjectID(req.query._id);
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: "Vous n'êtes pas connecté."
+        });
+    } else if (!req.query._id)  {
+        res.json({
+            success: false,
+            msg: "Aucun commentaire indiqué."
+        })
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.find({
+                "pseudo": pseudo
+            }, {
+                "scolaire": 1
+            }).toArray().then(function(data) {
+                var scolaire = data[0].scolaire;
+                collection = db.collection('classeFeed');
+                collection.update({
+                    etablissement: scolaire.etablissement,
+                    classe: scolaire.classe,
+                    numero: scolaire.numero_classe
+                }, {
+                    $pull: {
+                        "feed": {
+                            _id: commentId
+                        }
+                    }
+                });
+                res.json({
+                    success: true,
+                    msg: 'Commentaire supprimé avec succès.'
+                })
+            });
+        });
+    }
+});
+
+apiRoutes.get('/getClasseFeed', function(req, res) {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    if (!pseudo)  {
+        res.json({
+            success: false,
+            msg: "Vous n'êtes pas connecté."
+        })
+    } else  {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
+            collection.find({
+                "pseudo": pseudo
+            }, {
+                "scolaire": 1
+            }).toArray().then(function(data) {
+                var scolaire = data[0].scolaire;
+                collection = db.collection('classeFeed');
+                collection.find({
+                    'etablissement': scolaire.etablissement,
+                    'classe': scolaire.classe,
+                    'numero': scolaire.numero_classe
+                }).toArray().then(function(data) {
+                    if (typeof data[0] !== 'undefined' && data[0].feed.length > 0) {
+                        res.json({
+                            success: true,
+                            feed: data[0].feed
+                        });
+                    } else {
+                        res.json({
+                            success: false,
+                            msg: "Aucun commentaire."
+                        })
+                    };
+                })
+            });
+        });
+    }
+});
+
 apiRoutes.post('/followUser', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
