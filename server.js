@@ -66,7 +66,10 @@ app.use(function(req, res, next) {
     }
 });
 app.use("/public", express.static(path.join(__dirname, 'public')));
-
+app.get("/public/*", function(req, res) {
+    var img = fs.readFileSync('public/default.png');
+    res.end(img, 'binary');
+});
 // demo Route (GET http://localhost:8088)
 app.get('/', function(req, res) {
     res.json({
