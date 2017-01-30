@@ -13,7 +13,25 @@ var bcrypt = require('bcrypt');
 var fs = require("fs");
 var request = require("request");
 var https = require('https');
-
+var path = require('path');
+var multer = require('multer');
+var storage = multer.diskStorage({ //multers disk storage settings
+    destination: function(req, file, cb) {
+        cb(null, 'public')
+    },
+    filename: function(req, file, cb) {
+        var token = getToken(req.headers);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        var pseudo = decoded.pseudo;
+        cb(null, pseudo + '.png')
+    }
+});
+var upload = multer({ //multer settings
+    storage: storage
+}).single('file');
 String.prototype.capitalizeFirstLetter = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
@@ -47,6 +65,8 @@ app.use(function(req, res, next) {
         next();
     }
 });
+app.use("/public", express.static(path.join(__dirname, 'public')));
+
 // demo Route (GET http://localhost:8088)
 app.get('/', function(req, res) {
     res.json({
@@ -79,41 +99,31 @@ apiRoutes.get('/getProfile', function(req, res)  {
 });
 
 apiRoutes.post('/savePicture', function(req, res)  {
-    var imgData = req.body.img;
-    var pseudo = req.body.pseudo;
-    if (!imgData || !pseudo)  {
+    var token = getToken(req.headers);
+    var decoded;
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+    }
+    var pseudo = decoded.pseudo;
+    if (!pseudo) {
         res.json({
             success: false,
-            msg: 'Image non sauvegardée.'
-        })
+            msg: 'Utilisateur non connecté.'
+        });
     } else {
-        MongoClient.connect(config.database, function(err, db) {
+        upload(req, res, function(err) {
             if (err) {
-                return console.dir(err);
-            }
-            var collection = db.collection('users');
-            if (imgData.length < 1000)  {
-                collection.update({
-                    "pseudo": pseudo
-                }, {
-                    '$set': {
-                        "picture": 'http://i.imgur.com/Dknt6vC.png'
-                    }
+                res.json({
+                    error_code: 1,
+                    err_desc: err
                 });
-            } else {
-                collection.update({
-                    "pseudo": pseudo
-                }, {
-                    '$set': {
-                        "picture": imgData
-                    }
-                });
+                return;
             }
             res.json({
-                success: true,
-                msg: 'Image sauvegardée.'
-            })
-        });
+                error_code: 0,
+                err_desc: null
+            });
+        })
     }
 });
 
