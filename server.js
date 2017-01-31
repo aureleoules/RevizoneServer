@@ -71,7 +71,7 @@ app.get("/public/*", function(req, res) {
     res.end(img, 'binary');
 });
 // demo Route (GET http://localhost:8088)
-app.get('/', function(req, res) {
+app.get('/api', function(req, res) {
     res.json({
         state: '200',
         msg: "Bienvenue sur le serveur nodeJS de ReviZone"
