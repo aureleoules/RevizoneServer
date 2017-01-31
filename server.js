@@ -1268,18 +1268,34 @@ apiRoutes.post('/newCours', function(req, res) {
 
 // create a new user account (POST http://localhost:8080/api/signup)
 apiRoutes.post('/signup', function(req, res) {
-    if (!req.body.name || !req.body.password || !req.body.pseudo || !req.body.codepostal || !req.body.etablissement || !req.body.classe || !req.body.numero_classe) {
+    var validator = require('validator');
+    console.log(req.body.email);
+    if (!req.body.email || !req.body.name || !req.body.password || !req.body.pseudo || !req.body.codepostal || !req.body.etablissement || !req.body.classe || !req.body.numero_classe) {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
         });
+    } else if (req.body.pseudo.length < 3) {
+        res.json({
+            success: false,
+            msg: 'Votre pseudo doit contenir au moins 3 lettres.'
+        });
+    } else if (req.body.name.split(' ').length < 2) {
+        res.json({
+            success: false,
+            msg: 'Entrez un prénom et un nom correct.'
+        });
+    } else if (validator.isEmail(req.body.email) === false) {
+        res.json({
+            success: false,
+            msg: 'Entrez une email valide.'
+        });
+    } else if (req.body.password.length < 6) {
+        res.json({
+            success: false,
+            msg: 'Votre mot de passe doit contenir au moins 6 lettres.'
+        });
     } else {
-        var picture;
-        if (req.body.picture === undefined || req.body.picture === "" || req.body.picture === null) {
-            picture = "http://i.imgur.com/Dknt6vC.png";
-        } else {
-            picture = req.body.picture;
-        }
         var newUser = new User({
             name: req.body.name,
             password: req.body.password,
@@ -1291,7 +1307,6 @@ apiRoutes.post('/signup', function(req, res) {
                 classe: req.body.classe,
                 numero_classe: req.body.numero_classe
             },
-            picture: picture,
             followed: []
         });
         // save the user
@@ -1303,16 +1318,6 @@ apiRoutes.post('/signup', function(req, res) {
                     msg: "L'utilisateur est déjà inscrit."
                 });
             }
-            // var token = jwt.encode({
-            //     pseudo: user.pseudo,
-            //     name: user.name,
-            //     createdAt: user.createdAt
-            // }, config.secret);
-            // // return the information including token as JSON
-            // res.json({
-            //     success: true,
-            //     token: 'JWT ' + token
-            // });
             res.json({
                 success: true,
                 msg: 'Utilisateur inscrit avec succès.'
