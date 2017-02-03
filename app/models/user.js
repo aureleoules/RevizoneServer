@@ -24,24 +24,19 @@ var UserSchema = new Schema({
     scolaire: {
         code_postal: {
             type: String,
-            required: true
         },
         etablissement: {
             type: String,
-            required: true
         },
         classe: {
             type: String,
-            required: true
         },
         numero_classe: {
             type: String,
-            required: true
         }
     },
     picture: {
         type: String,
-        required: false,
     },
     password: {
         type: String,

@@ -130,31 +130,6 @@ apiRoutes.post('/savePicture', function(req, res)  {
     }
 });
 
-apiRoutes.get('/getPicture', function(req, res)  {
-    var pseudo = req.query.pseudo;
-    if (!pseudo)  {
-        res.json({
-            success: false,
-            msg: 'Pas de pseudonyme fourni.'
-        });
-    } else {
-        MongoClient.connect(config.database, function(err, db) {
-            if (err) {
-                return console.dir(err);
-            }
-            var collection = db.collection('users');
-            collection.find({
-                "pseudo": pseudo
-            },   {
-                _id: 0,
-                picture: 1
-            }).toArray(function(err, picture) {
-                res.json(picture);
-            });
-        });
-    }
-});
-
 apiRoutes.get('/getRandomCours', function(req, res)  {
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
@@ -345,7 +320,7 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                 followed: 1
             }).toArray(function(err, data) {
                 var followedList;
-                if (data[0] !== undefined)  {
+                if (data[0])  {
                     followedList = data[0].followed;
                 }
                 if (followedList !== undefined)  {
@@ -807,7 +782,6 @@ apiRoutes.put('/editUser', function(req, res) {
                     "scolaire.etablissement": user.scolaire.etablissement,
                     "scolaire.classe": user.scolaire.classe,
                     "scolaire.numero_classe": user.scolaire.numero_classe,
-                    "picture": user.picture,
                     "updatedAt": new Date().toISOString()
                 }
             });
@@ -1270,7 +1244,7 @@ apiRoutes.post('/newCours', function(req, res) {
 apiRoutes.post('/signup', function(req, res) {
     var validator = require('validator');
     console.log(req.body.email);
-    if (!req.body.email || !req.body.name || !req.body.password || !req.body.pseudo || !req.body.codepostal || !req.body.etablissement || !req.body.classe || !req.body.numero_classe) {
+    if (!req.body.email || !req.body.name || !req.body.password || !req.body.pseudo) {
         res.json({
             success: false,
             msg: 'Merci de vérifier vos champs.'
@@ -1301,12 +1275,6 @@ apiRoutes.post('/signup', function(req, res) {
             password: req.body.password,
             pseudo: req.body.pseudo.toLowerCase(),
             email: req.body.email,
-            scolaire: {
-                code_postal: parseInt(req.body.codepostal),
-                etablissement: req.body.etablissement,
-                classe: req.body.classe,
-                numero_classe: req.body.numero_classe
-            },
             followed: []
         });
         // save the user
