@@ -91,13 +91,21 @@ apiRoutes.get('/getProfile', function(req, res)  {
             return console.dir(err);
         }
         var collection = db.collection('users');
-        collection.find({
-            pseudo: req.query.pseudo.toLowerCase()
-        },   {
-            password: 0
-        }).toArray(function(err, user) {
-            res.json(user);
-        });
+        try {
+            collection.find({
+                pseudo: req.query.pseudo.toLowerCase()
+            },   {
+                password: 0
+            }).toArray(function(err, user) {
+                res.json(user);
+            });
+        } catch (e) {
+            res.json({
+                success: false,
+                msg: 'Erreur inconnue.'
+            });
+            console.log(e);
+        }
     });
 });
 
@@ -773,7 +781,7 @@ apiRoutes.put('/editUser', function(req, res) {
             var collection = db.collection('users');
             var user = req.body.user;
             var cp = '';
-            var etablissement ='';
+            var etablissement = '';
             var classe = '';
             var numero_classe = '';
             if (typeof user.scolaire !== 'undefined') {
