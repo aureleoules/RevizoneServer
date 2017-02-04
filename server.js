@@ -772,16 +772,26 @@ apiRoutes.put('/editUser', function(req, res) {
             }
             var collection = db.collection('users');
             var user = req.body.user;
+            var cp = '';
+            var etablissement ='';
+            var classe = '';
+            var numero_classe = '';
+            if (typeof user.scolaire !== 'undefined') {
+                cp = user.scolaire.code_postal || '';
+                etablissement = user.scolaire.etablissement || '';
+                classe = user.scolaire.classe || '';
+                numero_classe = user.scolaire.numero_classe || '';
+            }
             collection.updateOne({
                 pseudo: pseudo
             }, {
                 $set: {
                     "name": user.name,
                     "email": user.email,
-                    "scolaire.code_postal": user.scolaire.code_postal,
-                    "scolaire.etablissement": user.scolaire.etablissement,
-                    "scolaire.classe": user.scolaire.classe,
-                    "scolaire.numero_classe": user.scolaire.numero_classe,
+                    "scolaire.code_postal": cp,
+                    "scolaire.etablissement": etablissement,
+                    "scolaire.classe": classe,
+                    "scolaire.numero_classe": numero_classe,
                     "updatedAt": new Date().toISOString()
                 }
             });
