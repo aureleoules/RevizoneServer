@@ -84,7 +84,7 @@ require('./config/passport')(passport);
 
 // bundle our routes
 var apiRoutes = express.Router();
-
+var apiAdmin = require('./routes-admin');
 apiRoutes.get('/getProfile', function(req, res)  {
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
@@ -1393,6 +1393,7 @@ getToken = function(headers) {
     }
 };
 // connect the api routes under /api/*
+app.use('/admin', apiAdmin);
 app.use('/api', apiRoutes);
 // Start the server
 var a = https.createServer(options, app).listen(port);
