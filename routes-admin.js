@@ -6,6 +6,82 @@ module.exports = (function() {
     var config = require('./config/database'); // get db config file
     var jwt = require('jwt-simple');
     var User = require('./app/models/user'); // get the mongoose model
+
+
+
+    app.get('/getUserInfos', function(req, res) {
+        var token = getToken(req.headers);
+        var userPseudo = req.query.pseudo;
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('users');
+                collection.find({
+                    pseudo: userPseudo
+                }, {
+                    password: 0
+                }).toArray().then(function(data) {
+                    res.json(data[0]);
+                });
+            });
+        }
+    });
+
+    app.post('/saveUserInfos', function(req, res) {
+        var token = getToken(req.headers);
+        var user = req.body.user;
+        var user_id = new mongo.ObjectID(user._id);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('users');
+                collection.update({
+                    _id: user_id
+                }, {
+                    $set: {
+                        name: user.name,
+                        pseudo: user.pseudo,
+                        email: user.email,
+                        scolaire: {
+                            code_postal: user.scolaire.code_postal,
+                            etablissement: user.scolaire.etablissement,
+                            classe: user.scolaire.classe,
+                            numero_classe: user.scolaire.classe
+                        },
+                        role: user.role
+                    }
+                }).then(function(data) {
+                    res.json({
+                        success: true,
+                        msg: 'Utilisateur modifié avec succès!'
+                    });
+                });
+            });
+        }
+    });
+
     app.get('/listUsers', function(req, res) {
         var pageSize = 20;
         var token = getToken(req.headers);
