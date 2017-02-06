@@ -38,6 +38,9 @@ var UserSchema = new Schema({
     picture: {
         type: String,
     },
+    role :{
+        type: String
+    },
     password: {
         type: String,
         required: true
@@ -48,6 +51,7 @@ var UserSchema = new Schema({
 
 UserSchema.pre('save', function(next) {
     var user = this;
+    user.role = 'user';
     if (this.isModified('password') || this.isNew) {
         bcrypt.genSalt(10, function(err, salt) {
             if (err) {

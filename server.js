@@ -1272,6 +1272,11 @@ apiRoutes.post('/signup', function(req, res) {
             success: false,
             msg: 'Votre pseudo doit contenir au moins 3 lettres.'
         });
+    } else if(/^[a-zA-Z0-9]*$/.test(req.body.pseudo) == false) {
+        res.json({
+            success: false,
+            msg: "Votre pseudo contient des caractères non autorisés."
+        });
     } else if (req.body.name.split(' ').length < 2) {
         res.json({
             success: false,

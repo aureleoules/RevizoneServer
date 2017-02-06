@@ -6,14 +6,83 @@ module.exports = (function() {
     var config = require('./config/database'); // get db config file
     var jwt = require('jwt-simple');
     var User = require('./app/models/user'); // get the mongoose model
-    app.get('/statistics', function(req, res) {
+    app.get('/listUsers', function(req, res) {
+        var pageSize = 20;
         var token = getToken(req.headers);
-        var pseudoLogged;
         var decoded;
         if (token) {
             var decoded = jwt.decode(token, config.secret);
         }
-        if (!decoded) {
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var statistics = {};
+                var collection = db.collection('users');
+                collection.find({}, {
+                    name: 1,
+                    pseudo: 1,
+                    email: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    role: 1
+                }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray().then(function(data) {
+                    res.json(data);
+                });
+            });
+        }
+    });
+
+    app.get('/listCours', function(req, res) {
+        var pageSize = 20;
+        var token = getToken(req.headers);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var statistics = {};
+                var collection = db.collection('cours');
+                collection.find({}, {
+                    auteur: 1,
+                    classe: 1,
+                    matiere: 1,
+                    chapitre: 1,
+                    titre: 1,
+                    lectures: 1,
+                    createdAt: 1,
+                    modifiedAt: 1,
+                    public: 1
+                }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray().then(function(data) {
+                    res.json(data);
+                });
+            });
+        }
+    });
+
+    app.get('/statistics', function(req, res) {
+        var token = getToken(req.headers);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        console.log(decoded);
+        if (!decoded || decoded.role !== 'admin') {
             res.json({
                 success: false,
                 msg: "Vous n'êtes pas connecté!"
@@ -64,7 +133,8 @@ module.exports = (function() {
                         var token = jwt.encode({
                             pseudo: user.pseudo,
                             name: user.name,
-                            createdAt: user.createdAt
+                            createdAt: user.createdAt,
+                            role: user.role
                         }, config.secret);
                         // return the information including token as JSON
                         res.json({
@@ -79,6 +149,13 @@ module.exports = (function() {
                     }
                 });
             }
+        });
+    });
+
+    app.get('/status', function(req, res) {
+        res.json({
+            success: true,
+            msg: 'Le serveur est allumé.'
         });
     });
 
