@@ -154,7 +154,6 @@ module.exports = (function() {
             });
         }
     });
-
     app.get('/getUserInfos', function(req, res) {
         var token = getToken(req.headers);
         var userPseudo = req.query.pseudo;
@@ -303,7 +302,6 @@ module.exports = (function() {
         if (token) {
             var decoded = jwt.decode(token, config.secret);
         }
-        console.log(decoded);
         if (!decoded || decoded.role !== 'admin') {
             res.json({
                 success: false,
@@ -375,31 +373,43 @@ module.exports = (function() {
     });
 
     app.post('/sendEmail', function(req, res) {
-        let smtpConfig = {
-            host: 'mail.revizone.fr',
-            port: 465,
-            secure: true, // use TLS
-            auth: {
-                user: 'webmaster@revizone.fr',
-                pass: 'aurele78'
-            }
-        };
-        var message = {
-            from: 'webmaster@revizone.fr',
-            to: 'ioaurele@gmail.com',
-            subject: 'Bonjour!',
-            text: 'This nodeJS server is insane!',
-            html: '<p>You are daym <b>right</b> !</p>'
-        };
-        let transporter = nodemailer.createTransport(smtpConfig);
-        transporter.sendMail(message, function(result) {
-            console.log(result);
-        });
-        res.json({
-            success: true,
-            msg: 'Email envoyé.',
-            email: message
-        })
+        var token = getToken(req.headers);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            let smtpConfig = {
+                host: 'mail.revizone.fr',
+                port: 587,
+                auth: {
+                    user: config.smtpuser,
+                    pass: config.smtppass
+                },
+                tls: {
+                    rejectUnauthorized: false
+                }
+            };
+            var message = {
+                from: 'no-reply@revizone.fr',
+                to: req.body.dest,
+                subject: req.body.subject,
+                html: req.body.body
+            };
+            let transporter = nodemailer.createTransport(smtpConfig);
+            transporter.sendMail(message, function(err, result) {
+            });
+            res.json({
+                success: true,
+                msg: 'Email envoyé.',
+                email: message
+            });
+        }
     });
 
     app.get('/status', function(req, res) {
