@@ -8,6 +8,151 @@ module.exports = (function() {
     var User = require('./app/models/user'); // get the mongoose model
 
 
+    app.post('/createTodo', function(req, res) {
+        var token = getToken(req.headers);
+        var task = req.body.task;
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else if (!task.titre || !task.description) {
+            res.json({
+                success: false,
+                msg: 'Veuillez définir votre tâche.'
+            })
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('todolist');
+                collection.insertOne({
+                    titre: task.titre,
+                    description: task.description,
+                    difficultee: task.difficultee,
+                    duree: task.duree,
+                    commentaire: task.commentaire,
+                    completed: false,
+                    createdAt: new Date().toISOString(),
+                    auteur: decoded.pseudo
+                }).then(function(data) {
+                    res.json({
+                        success: true,
+                        msg: 'Tâche enregistrée avec succès!'
+                    });
+                });
+            });
+        }
+    });
+
+    app.get('/getTodo', function(req, res) {
+        var token = getToken(req.headers);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('todolist');
+                var isCompleted = (req.query.completed == 'true');
+                collection.find({
+                    completed: isCompleted
+                }).toArray().then(function(data) {
+                    console.log(isCompleted);
+                    console.log(data);
+                    res.json(data);
+                });
+            });
+        }
+    });
+
+    app.delete('/removeTodo', function(req, res) {
+        var token = getToken(req.headers);
+        var todoId = new mongo.ObjectID(req.query.todoId);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else if (!req.query.todoId) {
+            res.json({
+                success: false,
+                msg: 'Aucune tâche a supprimer.'
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('todolist');
+                collection.remove({
+                    _id: todoId
+                }).then(function(result) {
+                    res.json({
+                        success: true,
+                        msg: 'Tâche supprimée avec succès.'
+                    });
+                });
+            });
+        }
+    });
+
+    app.post('/changeTodoState', function(req, res) {
+        var token = getToken(req.headers);
+        var todoId = new mongo.ObjectID(req.body.todoId);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else if (!req.body.todoId) {
+            res.json({
+                success: false,
+                msg: 'Aucune tâche a terminer.'
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('todolist');
+                var isCompleted = (req.body.completed === 'true');
+                collection.update({
+                    _id: todoId
+                }, {
+                    $set: {
+                        completed: isCompleted
+                    }
+                }).then(function(result) {
+                    res.json({
+                        success: true,
+                        msg: 'Tâche terminée avec succès.'
+                    });
+                });
+            });
+        }
+    });
 
     app.get('/getUserInfos', function(req, res) {
         var token = getToken(req.headers);
