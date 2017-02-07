@@ -6,6 +6,7 @@ module.exports = (function() {
     var config = require('./config/database'); // get db config file
     var jwt = require('jwt-simple');
     var User = require('./app/models/user'); // get the mongoose model
+    const nodemailer = require('nodemailer');
 
 
     app.post('/createTodo', function(req, res) {
@@ -371,6 +372,34 @@ module.exports = (function() {
                 });
             }
         });
+    });
+
+    app.post('/sendEmail', function(req, res) {
+        let smtpConfig = {
+            host: 'mail.revizone.fr',
+            port: 465,
+            secure: true, // use TLS
+            auth: {
+                user: 'webmaster@revizone.fr',
+                pass: 'aurele78'
+            }
+        };
+        var message = {
+            from: 'webmaster@revizone.fr',
+            to: 'ioaurele@gmail.com',
+            subject: 'Bonjour!',
+            text: 'This nodeJS server is insane!',
+            html: '<p>You are daym <b>right</b> !</p>'
+        };
+        let transporter = nodemailer.createTransport(smtpConfig);
+        transporter.sendMail(message, function(result) {
+            console.log(result);
+        });
+        res.json({
+            success: true,
+            msg: 'Email envoyé.',
+            email: message
+        })
     });
 
     app.get('/status', function(req, res) {
