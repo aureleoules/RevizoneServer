@@ -399,7 +399,9 @@ module.exports = (function() {
                 from: 'no-reply@revizone.fr',
                 to: req.body.dest,
                 subject: req.body.subject,
-                html: req.body.body
+                html: req.body.body,
+                cc: req.body.cc,
+                bcc: req.body.bcc
             };
             let transporter = nodemailer.createTransport(smtpConfig);
             transporter.sendMail(message, function(err, result) {
