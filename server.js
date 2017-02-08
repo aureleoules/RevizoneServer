@@ -1338,7 +1338,8 @@ apiRoutes.post('/authenticate', function(req, res) {
                     var token = jwt.encode({
                         pseudo: user.pseudo,
                         name: user.name,
-                        createdAt: user.createdAt
+                        createdAt: user.createdAt,
+                        role: user.role
                     }, config.secret);
                     // return the information including token as JSON
                     res.json({
