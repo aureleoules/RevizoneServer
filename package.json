@@ -17,7 +17,8 @@
     "nodemailer": "^3.0.2",
     "passport": "^0.3.0",
     "passport-jwt": "^1.2.1",
-    "request": "^2.79.0"
+    "request": "^2.79.0",
+    "validator": "^6.2.1"
   },
   "author": "Nuf",
   "license": "ISC"
