@@ -333,32 +333,36 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                 }
                 if (followedList !== undefined)  {
                     followedList.push(pseudo);
-                    var query = {};
-                    query['auteur'] = {
-                        "$in": followedList
-                    };
-                    query['public'] = true;
-                    if (err) {
-                        return console.dir(err);
-                    }
-                    collection = db.collection('cours');
-                    collection.find(query,   {
-                        _id: 1,
-                        classe: 1,
-                        chapitre: 1,
-                        matiere: 1,
-                        titre: 1,
-                        lectures: 1,
-                        auteur: 1,
-                        createdAt: 1
-                    }).limit(50).toArray(function(err, data) {
-                        feed = data;
-                        res.json({
-                            success: true,
-                            feed: feed
-                        })
-                    });
                 }
+                var query = {};
+                query['auteur'] = {
+                    "$in": followedList
+                };
+                query['public'] = true;
+                if (err) {
+                    return console.dir(err);
+                }
+                collection = db.collection('cours');
+                collection.find(query,   {
+                    _id: 1,
+                    classe: 1,
+                    chapitre: 1,
+                    matiere: 1,
+                    titre: 1,
+                    lectures: 1,
+                    auteur: 1,
+                    createdAt: 1
+                }).limit(50).toArray(function(err, data) {
+                    if(data) {
+                        feed = data;
+                    } else {
+                        feed = null;
+                    }
+                    res.json({
+                        success: true,
+                        feed: feed
+                    })
+                });
 
             });
         });
@@ -1272,7 +1276,7 @@ apiRoutes.post('/signup', function(req, res) {
             success: false,
             msg: 'Votre pseudo doit contenir au moins 3 lettres.'
         });
-    } else if(/^[a-zA-Z0-9]*$/.test(req.body.pseudo) == false) {
+    } else if (/^[a-zA-Z0-9]*$/.test(req.body.pseudo) == false) {
         res.json({
             success: false,
             msg: "Votre pseudo contient des caractères non autorisés."
