@@ -353,21 +353,15 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                     auteur: 1,
                     createdAt: 1
                 }).limit(50).toArray(function(err, data) {
-                    feed = data;
-                    if(feed) {
-                        res.json({
-                            success: true,
-                            feed: feed
-                        })
-                    } else {
-                        res.json({
-                            success: false,
-                            msg: "Aucun fil d'actualité."
-                        })
+                    if (data) {
+                        feed = data;
                     }
-
+                    console.log(feed);
+                    res.json({
+                        success: true,
+                        feed: feed
+                    })
                 });
-
             });
         });
     }
