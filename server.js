@@ -338,7 +338,7 @@ apiRoutes.get('/getUserFeed', function(req, res)  {
                 query['auteur'] = {
                     "$in": followedList
                 };
-                query['public'] = true;
+                query['visible'] = true;
                 if (err) {
                     return console.dir(err);
                 }
