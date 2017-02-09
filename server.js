@@ -448,6 +448,7 @@ apiRoutes.get('/chercherCours', function(req, res)  {
             }
         }
         query['public'] = true;
+        query['visible'] = true;
         var coursLength;
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
@@ -489,9 +490,10 @@ apiRoutes.get('/getListCours', function(req, res)  {
     } else {
         query = {
             auteur: pseudo,
-            public: true
+            public: true,
         }
     }
+    query['visible'] = true;
     MongoClient.connect(config.database, function(err, db) {
         if (err) {
             return console.dir(err);
@@ -601,7 +603,8 @@ apiRoutes.get('/getCours', function(req, res)  {
         }
         var collection = db.collection('cours');
         collection.find({
-            _id: coursId
+            _id: coursId,
+            visible: true
         }).toArray(function(err, cours) {
             if (cours.length < 1)  {
                 res.json({
@@ -1240,7 +1243,8 @@ apiRoutes.post('/newCours', function(req, res) {
             modifiedAt: new Date().toISOString(),
             public: req.body.public,
             lectures: 0,
-            rates:  []
+            rates:  [],
+            visible: true
 
         };
         var insertDocument = function(db, callback) {

@@ -7,8 +7,6 @@ module.exports = (function() {
     var jwt = require('jwt-simple');
     var User = require('./app/models/user'); // get the mongoose model
     const nodemailer = require('nodemailer');
-
-
     app.post('/createTodo', function(req, res) {
         var token = getToken(req.headers);
         var task = req.body.task;
@@ -180,6 +178,116 @@ module.exports = (function() {
                     res.json(data[0]);
                 });
             });
+        }
+    });
+
+    app.get('/getCoursInfo', function(req, res) {
+        var token = getToken(req.headers);
+        var coursId = new mongo.ObjectID(req.query.coursId);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else if (!req.query.coursId) {
+            res.json({
+                success: false,
+                msg: "Aucun cours demandé."
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('cours');
+                collection.find({
+                    _id: coursId
+                }).toArray().then(function(data) {
+                    res.json(data[0]);
+                });
+            });
+        }
+    });
+
+    app.post('/saveCours', function(req, res) {
+        var token = getToken(req.headers);
+        var coursId = new mongo.ObjectID(req.body.cours._id);
+        var cours = req.body.cours;
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        console.log(cours);
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('cours');
+                collection.update({
+                    _id: coursId
+                }, {
+                    $set: {
+                        auteur: cours.auteur,
+                        classe: cours.classe,
+                        matiere: cours.matiere,
+                        chapitre: cours.chapitre,
+                        titre: cours.titre,
+                        public: cours.public,
+                        visible: cours.visible
+                    }
+                }).then(function(data) {
+                    res.json({
+                        success: true,
+                        msg: 'Cours modifié avec succès!'
+                    });
+                });
+            });
+        }
+    });
+
+    app.delete('/deleteCours', function(req, res) {
+        var token = getToken(req.headers);
+        var coursId = new mongo.ObjectID(req.query.coursId);
+        console.log(req.query.coursId);
+        var decoded;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else if (!req.query.coursId) {
+            res.json({
+                success: false,
+                msg: 'Aucun cours à supprimé.'
+            })
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('cours');
+                collection.remove({
+                    _id: coursId
+                }).then(function() {
+                    res.json({
+                        success: true,
+                        msg: 'Cours supprimé avec succès'
+                    });
+                });
+            })
         }
     });
 
@@ -404,8 +512,7 @@ module.exports = (function() {
                 bcc: req.body.bcc
             };
             let transporter = nodemailer.createTransport(smtpConfig);
-            transporter.sendMail(message, function(err, result) {
-            });
+            transporter.sendMail(message, function(err, result) {});
             res.json({
                 success: true,
                 msg: 'Email envoyé.',
