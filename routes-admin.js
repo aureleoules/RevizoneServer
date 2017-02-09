@@ -396,7 +396,8 @@ module.exports = (function() {
                     lectures: 1,
                     createdAt: 1,
                     modifiedAt: 1,
-                    public: 1
+                    public: 1,
+                    visible: 1
                 }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray().then(function(data) {
                     res.json(data);
                 });
