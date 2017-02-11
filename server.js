@@ -562,11 +562,11 @@ apiRoutes.get('/getClasse', function(req, res)  {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo.toLowerCase();
-    if (!user || !user.scolaire.etablissement || !user.scolaire.classe || !user.scolaire.numero_classe || !pseudo) {
+    if (!pseudo) {
         res.json({
             success: false,
-            msg: "Cet utilisateur n'apparitent à aucune classe."
-        })
+            msg: "Aucun utilisateur."
+        });
     } else {
         MongoClient.connect(config.database, function(err, db) {
             if (err) {
@@ -581,21 +581,28 @@ apiRoutes.get('/getClasse', function(req, res)  {
                 "scolaire.numero_classe": 1
             }).toArray(function(err, result) {
                 var user = result[0];
-                collection = db.collection('users');
-                collection.find({
-                    "scolaire.etablissement": user.scolaire.etablissement,
-                    "scolaire.classe": user.scolaire.classe,
-                    "scolaire.numero_classe": user.scolaire.numero_classe
-                },   {
-                    "_id": 1,
-                    "pseudo": 1,
-                    "name": 1,
-                    "scolaire.etablissement": 1,
-                    "scolaire.classe": 1,
-                    "scolaire.numero_classe": 1
-                }).toArray(function(err, classe) {
-                    res.json(classe);
-                });
+                if (!user || !user.scolaire.etablissement || !user.scolaire.classe || !user.scolaire.numero_classe) {
+                    res.json({
+                        success: false,
+                        msg: "Cet utilsateur n'appartient à aucune classe."
+                    })
+                } else {
+                    collection = db.collection('users');
+                    collection.find({
+                        "scolaire.etablissement": user.scolaire.etablissement,
+                        "scolaire.classe": user.scolaire.classe,
+                        "scolaire.numero_classe": user.scolaire.numero_classe
+                    },   {
+                        "_id": 1,
+                        "pseudo": 1,
+                        "name": 1,
+                        "scolaire.etablissement": 1,
+                        "scolaire.classe": 1,
+                        "scolaire.numero_classe": 1
+                    }).toArray(function(err, classe) {
+                        res.json(classe);
+                    });
+                }
             });
         });
     }
@@ -1400,8 +1407,10 @@ apiRoutes.post('/signup', function(req, res) {
                         from: 'no-reply@revizone.fr',
                         to: req.body.email,
                         subject: 'Confirmer votre addresse email',
-                        html: `<h1>Confirmation d'adresse email</h1>
-                            <p>Merci de cliquer sur ce <a href="https://www.revizone.fr/#/verify/${result.ops[0]._id}">lien</a> pour activer votre compte</p>`
+                        html: `
+                        <h1 style="color: #34495e">Bienvenue ${req.body.name}!</h1>
+                        <p style="color: #34495e; font-size: 14px">Merci de vérifier votre compte ReviZone en cliquant sur ce <a style="color: #1abc9c" href="https://www.revizone.fr/#/verify/${result.ops[0]._id}">lien</a> !</p>
+                        `
                     };
                     let transporter = nodemailer.createTransport(smtpConfig);
                     transporter.sendMail(message, function(err, result) {});
@@ -1420,11 +1429,15 @@ apiRoutes.post('/authenticate', function(req, res) {
         pseudo: req.body.pseudo.toLowerCase()
     }, function(err, user) {
         if (err) throw err;
-
         if (!user) {
-            res.send({
+            res.json({
                 success: false,
-                msg: 'Connexion échouée. Utilisateur non trouvé.'
+                msg: 'Connexion échouée, utilisateur non trouvé.'
+            });
+        } else if(user.verified === false) {
+            res.json({
+                success: false,
+                msg: "Utilisateur non vérifié."
             });
         } else {
             // check if password matches
