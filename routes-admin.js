@@ -323,7 +323,8 @@ module.exports = (function() {
                             classe: user.scolaire.classe,
                             numero_classe: user.scolaire.classe
                         },
-                        role: user.role
+                        role: user.role,
+                        verified: user.verified
                     }
                 }).then(function(data) {
                     res.json({
