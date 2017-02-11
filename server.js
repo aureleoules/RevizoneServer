@@ -14,6 +14,7 @@ var fs = require("fs");
 var request = require("request");
 var https = require('https');
 var path = require('path');
+const nodemailer = require('nodemailer');
 var multer = require('multer');
 var storage = multer.diskStorage({ //multers disk storage settings
     destination: function(req, file, cb) {
@@ -561,37 +562,43 @@ apiRoutes.get('/getClasse', function(req, res)  {
         var decoded = jwt.decode(token, config.secret);
     }
     var pseudo = decoded.pseudo.toLowerCase();
-    MongoClient.connect(config.database, function(err, db) {
-        if (err) {
-            return console.dir(err);
-        }
-        var collection = db.collection('users');
-        collection.find({
-            pseudo: pseudo
-        }, {
-            "scolaire.etablissement": 1,
-            "scolaire.classe": 1,
-            "scolaire.numero_classe": 1
-        }).toArray(function(err, result) {
-            var user = result[0];
-            collection = db.collection('users');
+    if (!user || !user.scolaire.etablissement || !user.scolaire.classe || !user.scolaire.numero_classe || !pseudo) {
+        res.json({
+            success: false,
+            msg: "Cet utilisateur n'apparitent à aucune classe."
+        })
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('users');
             collection.find({
-                "scolaire.etablissement": user.scolaire.etablissement,
-                "scolaire.classe": user.scolaire.classe,
-                "scolaire.numero_classe": user.scolaire.numero_classe
-            },   {
-                "_id": 1,
-                "pseudo": 1,
-                "name": 1,
+                pseudo: pseudo
+            }, {
                 "scolaire.etablissement": 1,
                 "scolaire.classe": 1,
                 "scolaire.numero_classe": 1
-            }).toArray(function(err, classe) {
-                res.json(classe);
+            }).toArray(function(err, result) {
+                var user = result[0];
+                collection = db.collection('users');
+                collection.find({
+                    "scolaire.etablissement": user.scolaire.etablissement,
+                    "scolaire.classe": user.scolaire.classe,
+                    "scolaire.numero_classe": user.scolaire.numero_classe
+                },   {
+                    "_id": 1,
+                    "pseudo": 1,
+                    "name": 1,
+                    "scolaire.etablissement": 1,
+                    "scolaire.classe": 1,
+                    "scolaire.numero_classe": 1
+                }).toArray(function(err, classe) {
+                    res.json(classe);
+                });
             });
         });
-    });
-
+    }
 });
 
 apiRoutes.get('/getCours', function(req, res)  {
@@ -1061,6 +1068,53 @@ apiRoutes.post('/followUser', function(req, res) {
     }
 });
 
+apiRoutes.post('/verifyUser', function(req, res) {
+    var userId = req.body.userId;
+    if (!userId) {
+        res.json({
+            success: false,
+            msg: 'Aucun utilisateur à vérifier.'
+        });
+    } else {
+        MongoClient.connect(config.database, function(err, db) {
+            if (err) {
+                return console.dir(err);
+            }
+            var collection = db.collection('email_verifications');
+            collection.find({
+                _id: new mongo.ObjectID(userId)
+            }).toArray().then(function(result) {
+                if (typeof result[0] !== 'undefined') {
+                    if (result[0]._id == userId) {
+                        collection.remove({
+                            _id: new mongo.ObjectID(userId)
+                        }).then(function() {
+                            collection = db.collection('users');
+                            collection.update({
+                                pseudo: result[0].pseudo
+                            }, {
+                                $set: {
+                                    verified: true
+                                }
+                            }).then(function() {
+                                res.json({
+                                    success: true,
+                                    msg: 'Email confirmée'
+                                });
+                            });
+                        });
+                    }
+                } else {
+                    res.json({
+                        success: false,
+                        msg: "Cette adresse email est déjà confirmée ou n'existe pas."
+                    })
+                }
+            });
+        });
+    }
+});
+
 apiRoutes.delete('/unFollowUser', function(req, res) {
     var token = getToken(req.headers);
     var decoded;
@@ -1304,7 +1358,14 @@ apiRoutes.post('/signup', function(req, res) {
             password: req.body.password,
             pseudo: req.body.pseudo.toLowerCase(),
             email: req.body.email,
-            followed: []
+            followed: [],
+            verified: false,
+            scolaire: {
+                etablissement: '',
+                classe: '',
+                numero_classe: '',
+                code_postal: ''
+            }
         });
         // save the user
         newUser.save(function(err) {
@@ -1315,6 +1376,37 @@ apiRoutes.post('/signup', function(req, res) {
                     msg: "L'utilisateur est déjà inscrit."
                 });
             }
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var collection = db.collection('email_verifications');
+                collection.insertOne({
+                    email: req.body.email,
+                    pseudo: req.body.pseudo
+                }).then(function(result) {
+                    let smtpConfig = {
+                        host: 'mail.revizone.fr',
+                        port: 587,
+                        auth: {
+                            user: config.smtpuser,
+                            pass: config.smtppass
+                        },
+                        tls: {
+                            rejectUnauthorized: false
+                        }
+                    };
+                    var message = {
+                        from: 'no-reply@revizone.fr',
+                        to: req.body.email,
+                        subject: 'Confirmer votre addresse email',
+                        html: `<h1>Confirmation d'adresse email</h1>
+                            <p>Merci de cliquer sur ce <a href="https://www.revizone.fr/#/verify/${result.ops[0]._id}">lien</a> pour activer votre compte</p>`
+                    };
+                    let transporter = nodemailer.createTransport(smtpConfig);
+                    transporter.sendMail(message, function(err, result) {});
+                });
+            });
             res.json({
                 success: true,
                 msg: 'Utilisateur inscrit avec succès.'

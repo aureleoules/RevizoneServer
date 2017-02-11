@@ -44,6 +44,9 @@ var UserSchema = new Schema({
     password: {
         type: String,
         required: true
+    },
+    verified: {
+        type: Boolean
     }
 }, {
     timestamps: true

@@ -513,11 +513,12 @@ module.exports = (function() {
                 bcc: req.body.bcc
             };
             let transporter = nodemailer.createTransport(smtpConfig);
-            transporter.sendMail(message, function(err, result) {});
-            res.json({
-                success: true,
-                msg: 'Email envoyé.',
-                email: message
+            transporter.sendMail(message, function(err, result) {
+                res.json({
+                    success: true,
+                    msg: 'Email envoyé.',
+                    email: message
+                });
             });
         }
     });
