@@ -336,6 +336,45 @@ module.exports = (function() {
         }
     });
 
+    app.delete('/deleteUsers', function(req, res) {
+        var token = getToken(req.headers);
+        var decoded;
+        var users = req.query.users;
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+        }
+        if (!decoded || decoded.role !== 'admin') {
+            res.json({
+                success: false,
+                msg: "Vous n'êtes pas connecté!"
+            });
+        } else {
+            MongoClient.connect(config.database, function(err, db) {
+                if (err) {
+                    return console.dir(err);
+                }
+                var statistics = {};
+                var collection = db.collection('users');
+                if (typeof users === 'string') {
+                    collection.remove({
+                        pseudo: users
+                    });
+                } else {
+                    for (var i = 0; i < users.length; i++) {
+                        collection.remove({
+                            pseudo: users[i]
+                        });
+                    }
+                }
+                res.json({
+                    success: true,
+                    msg: "Utilisateur(s) supprimé(s)."
+                })
+            });
+        }
+
+    });
+
     app.get('/listUsers', function(req, res) {
         var pageSize = 20;
         var token = getToken(req.headers);
