@@ -361,7 +361,8 @@ module.exports = (function() {
                     email: 1,
                     createdAt: 1,
                     updatedAt: 1,
-                    role: 1
+                    role: 1,
+                    verified: 1
                 }).skip(pageSize * (req.query.page - 1)).limit(pageSize).toArray().then(function(data) {
                     res.json(data);
                 });
