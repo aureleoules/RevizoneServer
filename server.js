@@ -607,6 +607,35 @@ apiRoutes.get('/getClasse', function(req, res)  {
         });
     }
 });
+apiRoutes.get('/getCoursRaw', function(req, res)  {
+    var coursId = new mongo.ObjectID(req.query.coursId);
+
+    MongoClient.connect(config.database, function(err, db) {
+        if (err) {
+            return console.dir(err);
+        }
+        var collection = db.collection('cours');
+        collection.find({
+            _id: coursId,
+            visible: true
+        }).toArray(function(err, cours) {
+            if (cours.length < 1)  {
+                res.json({
+                    success: false,
+                    msg: "Ce cours est introuvable."
+                });
+
+            } else {
+                var coursRaw = "";
+                cours.content.ops.forEach(function(item) {
+                    console.log(item.insert);
+                    coursRaw += item.insert;
+                });
+                res.send(coursRaw);
+            }
+        });
+    });
+});
 
 apiRoutes.get('/getCours', function(req, res)  {
     var coursId = new mongo.ObjectID(req.query.coursId);
