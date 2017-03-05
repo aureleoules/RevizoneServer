@@ -627,7 +627,8 @@ apiRoutes.get('/getCoursRaw', function(req, res)  {
 
             } else {
                 var coursRaw = "";
-                cours.content.ops.forEach(function(item) {
+                console.log(cours[0].auteur);
+                cours[0].content.ops.forEach(function(item) {
                     console.log(item.insert);
                     coursRaw += item.insert;
                 });
